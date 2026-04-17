@@ -1,7 +1,6 @@
 """CLI for downloading and preparing MovieLens datasets."""
 
 import re
-import sys
 import zipfile
 from pathlib import Path
 from urllib.request import urlretrieve
@@ -22,15 +21,6 @@ DATASETS = {
 
 # CSV files to process
 FILES_TO_PROCESS = ["ratings", "movies", "links", "tags"]
-
-# Hugging Face models to cache
-HUGGINGFACE_MODELS = [
-    "google/gemma-3-4b-pt",  # 4B parameter pre-trained model
-    "google/gemma-3-12b-pt",  # 12B parameter pre-trained model
-    "mistralai/Ministral-8B-Instruct-2410",  # 8B parameter instruction-tuned model
-    "nomic-ai/nomic-embed-text-v2-moe",  # Multilingual MoE text embedding model
-    "Qwen/Qwen3-Embedding-0.6B",  # Smaller efficient embedding model
-]
 
 
 def camel_to_snake(name: str) -> str:
@@ -187,56 +177,6 @@ def prepare_data(dataset: str, input_dir: Path, output_dir: Path):
             raise
 
     click.echo(f"\n✓ Successfully processed {total_processed} files for {dataset} dataset")
-
-
-@cli.command()
-@click.option(
-    "--model",
-    type=str,
-    default=None,
-    help="Specific model to cache (default: cache all models)",
-)
-def cache_models(model: str | None):
-    """Pre-cache Hugging Face models for offline use.
-
-    Downloads and caches models from Hugging Face Hub. This is recommended
-    for workshop participants in bandwidth-sensitive regions to do in advance
-    with a stable internet connection.
-
-    Examples:
-        recsys-genai cache-models                                      # cache all models
-        recsys-genai cache-models --model google/gemma-3-12b-pt        # cache specific model
-    """
-    try:
-        from transformers import AutoModel, AutoTokenizer
-    except ImportError:
-        click.echo("✗ Error: transformers package not found.", err=True)
-        click.echo("Please ensure the package is installed: uv sync", err=True)
-        return
-
-    # Determine which models to cache
-    models_to_cache = [model] if model else HUGGINGFACE_MODELS
-
-    click.echo(f"Caching {len(models_to_cache)} model(s) from Hugging Face...")
-    click.echo("Cache directory: Hugging Face default (~/.cache/huggingface)")
-
-    for model_name in models_to_cache:
-        click.echo(f"\n📦 Caching model: {model_name}")
-
-        try:
-            # Download tokenizer
-            click.echo("  Downloading tokenizer...")
-            _tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-            click.echo("  ✓ Tokenizer cached")
-
-            # Download model
-            click.echo("  Downloading model weights...")
-            _model_obj = AutoModel.from_pretrained(model_name, trust_remote_code=True)
-            click.echo("  ✓ Model weights cached")
-
-        except Exception as e:
-            click.echo(f"  ✗ Error caching {model_name}: {e}", err=True)
-            sys.exit(1)
 
 
 if __name__ == "__main__":
