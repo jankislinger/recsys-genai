@@ -23,6 +23,7 @@ To prepare for the workshop, there are three main components to download in adva
 
 2. **Clone the repository and install dependencies**:
    ```shell
+   uv python install 3.14
    uv sync
    ```
 
