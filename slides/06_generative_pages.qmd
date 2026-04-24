@@ -1,0 +1,448 @@
+---
+title: "Part V: Generating Recommendation Pages"
+subtitle: "From Item Ranking to Experience Generation"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    incremental: false
+---
+
+## The Final Frontier {.center}
+
+We've learned to:
+
+- ✓ Rank items (MF, EASE)
+- ✓ Model sequences (SASRec)
+- ✓ Use LLMs for semantics
+
+**Now**: Generate the entire recommendation **experience**
+
+---
+
+## What is a "Recommendation Page"?
+
+Not just a list — a **structured interface**
+
+::: {.columns}
+::: {.column width="50%"}
+**Traditional Homepage:**
+
+```text
+┌─────────────────┐
+│ For You         │
+│ [10 items]      │
+├─────────────────┤
+│ Trending        │
+│ [10 items]      │
+├─────────────────┤
+│ Popular         │
+│ [10 items]      │
+└─────────────────┘
+```
+
+*Fixed template*
+:::
+
+::: {.column width="50%"}
+**Generative Homepage:**
+
+```text
+┌─────────────────┐
+│ Because you     │
+│ loved Toy Story │
+│ [5 items]       │
+├─────────────────┤
+│ Pixar Classics  │
+│ [8 items]       │
+├─────────────────┤
+│ New Releases    │
+│ [3 items]       │
+└─────────────────┘
+```
+
+*Personalized structure*
+:::
+:::
+
+---
+
+## Why Generate Pages?
+
+**Traditional approach:**
+1. Fixed number of rows (e.g., 5)
+2. Fixed row types ("Trending", "For You")
+3. Fixed items per row (10)
+
+**Limitations:**
+- Not personalized to user state
+- Ignores catalog dynamics
+- Suboptimal real estate allocation
+
+---
+
+## The Generative Shift
+
+**Key Idea**: Treat page layout as a **sequence generation** problem
+
+```text
+Page = Sequence of Tiles
+
+Tile₁ → Tile₂ → Tile₃ → ... → Tile_N
+
+Each tile is:
+  - Row header (e.g., "Because you loved...")
+  - Item selection
+  - Display properties (size, position)
+```
+
+::: {.fragment}
+**Autoregressive generation**: Each tile depends on previous tiles!
+:::
+
+---
+
+## From SASRec to Page Generation
+
+**SASRec:**
+- Input: sequence of items
+- Output: next item
+
+**Page Generator:**
+- Input: user context + catalog state
+- Output: sequence of **tiles** (each tile = row with items)
+
+::: {.fragment}
+Same transformer architecture, different vocabulary!
+:::
+
+---
+
+## Architecture Sketch
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 5
+graph LR
+    A[User Context] --> E[Encoder]
+    B[Catalog State] --> E
+    E --> D[Transformer Decoder]
+    D --> T1[Tile 1]
+    T1 --> D
+    D --> T2[Tile 2]
+    T2 --> D
+    D --> T3[Tile 3]
+    T3 --> D
+    
+    style E fill:#a2cde0
+    style D fill:#72b3d0
+    style T1 fill:#e8f4f8
+    style T2 fill:#e8f4f8
+    style T3 fill:#e8f4f8
+```
+
+**User Context**: Recent interactions, preferences, time of day
+
+**Catalog State**: Available items, trending content, new releases
+
+---
+
+## Tile Representation
+
+Each tile has multiple attributes:
+
+```python
+Tile = {
+    "type": "carousel",  # grid, hero, carousel
+    "header": "Because you loved Toy Story",
+    "items": [item_id_1, item_id_2, ..., item_id_k],
+    "size": "medium",  # small, medium, large
+    "position": 2,
+}
+```
+
+**Challenge**: How to autoregressively generate structured objects?
+
+---
+
+## Approach 1: Token Sequence
+
+Flatten tile structure into tokens:
+
+```text
+[TILE_START] [TYPE:carousel] [HEADER:loved_toy_story] 
+[ITEM:item_123] [ITEM:item_456] ... [TILE_END]
+
+[TILE_START] [TYPE:grid] [HEADER:trending] ...
+```
+
+**Transformer generates one token at a time!**
+
+::: {.fragment}
+Similar to how LLMs generate HTML:
+```html
+<div class="tile">
+  <h2>Because you loved Toy Story</h2>
+  <ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+  </ul>
+</div>
+```
+:::
+
+---
+
+## Approach 2: Tile Embeddings
+
+Learn embeddings for:
+
+- **Tile types**: carousel, grid, hero
+- **Headers**: parameterized by seed item/genre
+- **Item slots**: filled via retrieval
+
+**Generator outputs**:
+1. Tile type (classification)
+2. Header parameters (embeddings)
+3. Number of items (regression)
+
+Then populate with items from retrieval model.
+
+---
+
+## Coherence Constraints
+
+**Problem**: Generated pages must be **coherent**!
+
+Bad page:
+```text
+1. Action movies for you
+2. Action movies for you (duplicate!)
+3. Romantic comedies (sudden switch)
+```
+
+**Solutions:**
+
+- **Diversity penalty**: Discourage similar tiles
+- **Coverage reward**: Ensure variety
+- **Position bias**: Earlier tiles get more attention
+
+---
+
+## Training Data
+
+Where do we get page layouts for training?
+
+**Option 1**: Logged data
+- Capture pages shown to users
+- Label with engagement signals (clicks, watch time)
+
+**Option 2**: Simulate
+- Use heuristics to generate "good" pages
+- Reward pages that maximize diversity + relevance
+
+**Option 3**: Reinforcement Learning
+- Reward = user engagement
+- Train policy to generate high-reward pages
+
+---
+
+## Evaluation Metrics
+
+**Traditional RecSys**: Recall@K, NDCG@K
+
+**Page Generation**: Need **multi-objective** metrics!
+
+| **Metric**            | **What it Measures**                           |
+|-----------------------|------------------------------------------------|
+| **Coverage**          | How many items appear across all tiles?        |
+| **Diversity**         | How different are the tiles?                   |
+| **Coherence**         | Do tiles tell a story?                         |
+| **Engagement**        | Click-through rate, watch time                 |
+| **Layout Quality**    | Balanced sizes, good visual hierarchy          |
+
+---
+
+## Example: Alice's Generated Page
+
+**Input:**
+- User: Alice
+- Recent: [Toy Story, Finding Nemo, Up]
+- Time: Saturday evening
+
+**Output:**
+
+```text
+┌──────────────────────────────────┐
+│ 🎬 Continue Your Pixar Journey   │  ← Personalized header
+│ [Inside Out, Coco, Soul]          │  ← 3 items (small tile)
+├──────────────────────────────────┤
+│ More Like Up                      │
+│ [Wall-E, Ratatouille, Brave,     │  ← 8 items (large carousel)
+│  Monsters Inc, Finding Dory, ...]│
+├──────────────────────────────────┤
+│ New Family Favorites              │
+│ [Elemental, Turning Red]          │  ← 2 items (new releases)
+└──────────────────────────────────┘
+```
+
+**Generated properties:**
+- 3 tiles (not fixed!)
+- Personalized headers
+- Varying tile sizes
+
+---
+
+## Research Frontiers
+
+**Current challenges:**
+
+1. **Scalability**: Generating pages in real-time (< 100ms)
+2. **Controllability**: Allow business rules (e.g., "always include trending")
+3. **Evaluation**: Offline metrics don't predict online performance
+4. **Interpretability**: Why did the model generate this layout?
+
+**Open questions:**
+
+- How to incorporate user feedback in real-time?
+- Can we generate pages for **new users** (cold-start)?
+- Multi-modal generation (text + images + video)?
+
+---
+
+## Related Work
+
+**Slate Recommendation:**
+- Ie et al., "SlateQ: A Tractable Decomposition for Reinforcement Learning with Recommendation Slates" (2019)
+
+**List-wise Ranking:**
+- Cao et al., "Learning to Rank: From Pairwise Approach to Listwise Approach" (2007)
+
+**Generative Models:**
+- Your research! (cite your papers here)
+
+**Layout Generation:**
+- Li et al., "LayoutLM: Pre-training of Text and Layout" (2020) - for documents
+- Adapt for recommendation pages
+
+---
+
+## Connection to GenAI
+
+**Text Generation:**
+```text
+LLM: The cat → sat → on → the → mat
+```
+
+**Page Generation:**
+```text
+PageGen: Tile₁ → Tile₂ → Tile₃ → ...
+```
+
+**Same autoregressive paradigm!**
+
+::: {.fragment}
+Future: **Multimodal LLMs** that generate full UIs, not just text.
+:::
+
+---
+
+## Practical Considerations
+
+**Deploying generative page models:**
+
+1. **Candidate retrieval**: Generate tile concepts
+2. **Item filling**: Populate with retrieval model (EASE, SASRec)
+3. **Re-ranking**: Apply business rules
+4. **A/B testing**: Compare vs. baseline
+
+**Hybrid approach:**
+- Use generative model for *exploration*
+- Fall back to templates for *stability*
+
+---
+
+## Capstone Exercise {.center}
+
+**Your turn to design!**
+
+See `notebooks/07_capstone_exercise.qmd`
+
+---
+
+## Exercise Instructions
+
+**Given:**
+- User profile (interaction history)
+- Catalog (available items)
+- Constraints (max 5 tiles, at least 20 items total)
+
+**Task:**
+1. Design a page generation policy
+2. Specify tile types and item selection
+3. Justify coherence and diversity
+
+**Deliverable:**
+- Sketch of page layout
+- Pseudocode for tile generation
+- Discussion of trade-offs
+
+*Work in pairs or small groups (10 min)*
+
+---
+
+## Debrief
+
+Let's share some designs!
+
+- What tile types did you choose?
+- How did you ensure diversity?
+- How did you balance personalization vs. exploration?
+
+---
+
+## Key Takeaways
+
+1. **Pages are sequences** → Use autoregressive generation
+2. **Tiles are structured** → Need richer representations than items
+3. **Evaluation is multi-faceted** → Coverage, diversity, coherence, engagement
+4. **Hybrid approaches** → Generative + retrieval + rules
+
+::: {.fragment}
+**The future**: Personalized UIs generated end-to-end by transformers!
+:::
+
+---
+
+## What We've Covered Today
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 4
+graph LR
+    A[Matrix<br/>Factorization] --> B[EASE]
+    B --> C[SASRec]
+    C --> D[LLM<br/>Recommendation]
+    D --> E[Page<br/>Generation]
+    
+    style A fill:#e8f4f8
+    style B fill:#d1e7f0
+    style C fill:#b9dae8
+    style D fill:#8ac0d8
+    style E fill:#72b3d0
+```
+
+**A complete journey**: Classical → Sequential → Generative
+
+---
+
+## Next Steps & Resources
+
+See `slides/07_wrapup.qmd` for:
+
+- Research roadmap
+- Paper reading list
+- Advanced notebooks
+- Community resources
+
+**Thank you for participating!** 🎉

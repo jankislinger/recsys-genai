@@ -11,11 +11,16 @@ requires-python = ">=3.14"
 dependencies = [
     "click~=8.1",
     "dvc~=3.0",
-    "einops>=0.8.2",
+    "einops~=0.8",
     "jupyterlab~=4.5",
+    "jupyterlab-quarto~=0.3",
+    "jupytext>=1.19.1",
     "numpy~=2.4",
-    "polars~=1.39",
+    "plotnine~=0.15",
+    "polars[pyarrow]~=1.39",
     "quarto-cli~=1.9",
+    "scikit-learn~=1.8",
+    "scipy~=1.17",
     "torch~=2.11",
     "transformers~=5.4",
 ]
@@ -41,12 +46,15 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-ignore = ["E501"]
+ignore = [
+    "N803",  # Argument name should be lowercase
+    "N806",  # Variable in function should be lowercase
+]
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.10",
+    "ruff~=0.15",
 ]

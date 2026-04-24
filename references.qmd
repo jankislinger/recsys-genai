@@ -1,0 +1,12 @@
+---
+title: "References"
+subtitle: "Key Papers & Resources for RecSys GenAI Workshop"
+bibliography: references.bib
+nocite: |
+  @*
+---
+
+## Bibliography
+
+::: {#refs}
+:::

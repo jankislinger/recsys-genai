@@ -1,0 +1,65 @@
+project:
+  type: website
+  output-dir: _site/docs
+  render:
+    - "index.qmd"
+    - "references.qmd"
+    - "slides/*.qmd"
+    - "notebooks/*.qmd"
+
+website:
+  title: "RecSys GenAI Workshop"
+  navbar:
+    left:
+      - text: "Home"
+        href: index.qmd
+      - text: "Slides"
+        menu:
+          - text: "Part I: Introduction"
+            href: slides/01_introduction.qmd
+          - text: "Part III: Transformers"
+            href: slides/03_transformers.qmd
+          - text: "Part V: Generative Pages"
+            href: slides/06_generative_pages.qmd
+          - text: "Wrap-up"
+            href: slides/07_wrapup.qmd
+      - text: "Notebooks"
+        menu:
+          - text: "Part II: MovieLens Dataset"
+            href: notebooks/02_movielens.qmd
+          - text: "Part II: Foundations"
+            href: notebooks/02_foundations.qmd
+          - text: "Part III: SASRec"
+            href: notebooks/04_sasrec.qmd
+          - text: "Part IV: LLMs"
+            href: notebooks/05_llm_recommendation.qmd
+          - text: "Capstone Exercise"
+            href: notebooks/07_capstone_exercise.qmd
+      - text: "References"
+        href: references.qmd
+    right:
+      - icon: github
+        href: https://github.com/jankislinger/recsys-genai
+  page-footer:
+    left: |
+      ML Prague 2026 Workshop
+    center: |
+      Built with [Quarto](https://quarto.org/)
+    right: |
+      [GitHub](https://github.com/jankislinger/recsys-genai)
+
+bibliography: references.bib
+csl: https://www.zotero.org/styles/apa
+
+format:
+  html:
+    theme:
+      - journal
+      - custom.scss
+    code-fold: true
+    code-summary: "Show code"
+    toc: true
+    link-external-newwindow: true
+
+execute:
+  freeze: auto

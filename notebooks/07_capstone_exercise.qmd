@@ -1,0 +1,342 @@
+---
+title: "Capstone Exercise: Design a Generative Recommendation Page"
+subtitle: "Part V - Hands-On Design Challenge"
+jupyter: python3
+---
+
+# Exercise Overview
+
+**Goal**: Design and prototype a page generation policy for personalized recommendation homepages.
+
+**Time**: 10-15 minutes
+
+**Format**: Work individually or in pairs
+
+# Scenario
+
+You are designing a recommendation homepage for **Alice** on a Saturday evening.
+
+## Given Information
+
+```{python}
+import polars as pl
+from recsys_genai import load_movielens
+
+movies, ratings, _, _ = load_movielens("../data")
+
+# Alice's profile
+alice_id = 1
+alice_ratings = ratings.filter(pl.col("user_id") == alice_id).join(movies, on="movie_id")
+
+print("Alice's Top-Rated Movies (Recent):")
+top_rated = (
+    alice_ratings
+    .filter(pl.col("rating") >= 4.5)
+    .sort("timestamp", descending=True)
+    .head(10)
+    .select(["title", "genres", "rating"])
+)
+print(top_rated)
+
+# Context
+context = {
+    "user_id": 1,
+    "name": "Alice",
+    "time": "Saturday, 8:00 PM",
+    "device": "Smart TV",
+    "recent_sessions": ["Animation movies", "Family films"],
+    "last_watched": "Up (2009)"
+}
+
+print("\nContext:")
+for k, v in context.items():
+    print(f"  {k}: {v}")
+```
+
+## Catalog Information
+
+```{python}
+# Available movies (sample)
+catalog_size = len(movies)
+print(f"Total catalog: {catalog_size:,} movies")
+
+# Trending this week (simulated)
+trending = movies.head(20)
+print(f"\nTrending movies (sample):")
+print(trending.select(["title", "genres"]).head(5))
+
+# New releases (simulated - movies from 2015+)
+new_releases = movies.filter(pl.col("title").str.contains("\\(20(1[5-9]|2[0-9])\\)"))
+print(f"\nNew releases: {len(new_releases)} movies")
+```
+
+# Your Task
+
+Design a **5-tile recommendation page** for Alice.
+
+## Constraints
+
+1. **Exactly 5 tiles** (rows)
+2. **At least 20 items total** across all tiles
+3. **At least 3 different tile types** (carousel, grid, hero, etc.)
+4. **Diverse content** - avoid redundancy
+
+## Tile Types Available
+
+- **Hero**: Large single item (e.g., featured recommendation)
+- **Carousel**: Horizontal scrollable list (typically 5-10 items)
+- **Grid**: 2D grid layout (e.g., 2x3 = 6 items)
+- **Small Banner**: 2-3 items, compact
+
+## Design Template
+
+Fill in the following structure:
+
+```{python}
+# Example page design
+page_design = {
+    "tile_1": {
+        "type": "???",
+        "header": "???",
+        "num_items": 0,
+        "item_selection_strategy": "???",
+        "reasoning": "???"
+    },
+    "tile_2": {
+        "type": "???",
+        "header": "???",
+        "num_items": 0,
+        "item_selection_strategy": "???",
+        "reasoning": "???"
+    },
+    # ... tiles 3-5
+}
+
+# Example completed tile:
+example_tile = {
+    "type": "carousel",
+    "header": "Because you loved Up",
+    "num_items": 8,
+    "item_selection_strategy": "Content-based similarity to 'Up' (same director, genre)",
+    "reasoning": "Alice just watched Up; show similar Pixar films while interest is high"
+}
+
+print("Example Tile:")
+for k, v in example_tile.items():
+    print(f"  {k}: {v}")
+```
+
+# Part 1: Design Your Page (10 min)
+
+## Tile 1
+
+```python
+# Your design here
+tile_1 = {
+    "type": "",
+    "header": "",
+    "num_items": 0,
+    "item_selection_strategy": "",
+    "reasoning": ""
+}
+```
+
+## Tile 2
+
+```python
+tile_2 = {
+    "type": "",
+    "header": "",
+    "num_items": 0,
+    "item_selection_strategy": "",
+    "reasoning": ""
+}
+```
+
+## Tile 3
+
+```python
+tile_3 = {
+    "type": "",
+    "header": "",
+    "num_items": 0,
+    "item_selection_strategy": "",
+    "reasoning": ""
+}
+```
+
+## Tile 4
+
+```python
+tile_4 = {
+    "type": "",
+    "header": "",
+    "num_items": 0,
+    "item_selection_strategy": "",
+    "reasoning": ""
+}
+```
+
+## Tile 5
+
+```python
+tile_5 = {
+    "type": "",
+    "header": "",
+    "num_items": 0,
+    "item_selection_strategy": "",
+    "reasoning": ""
+}
+```
+
+# Part 2: Implementation Sketch (Optional)
+
+If time permits, write pseudocode for your tile generation algorithm:
+
+```python
+def generate_page(user_profile, catalog, context):
+    """
+    Generate personalized recommendation page.
+    
+    Args:
+        user_profile: User interaction history and preferences
+        catalog: Available items
+        context: Time, device, session info
+        
+    Returns:
+        List of tiles
+    """
+    tiles = []
+    
+    # Step 1: Extract user preferences
+    # TODO: ...
+    
+    # Step 2: Generate tile 1 (personalized)
+    # TODO: ...
+    
+    # Step 3: Generate tile 2 (exploration)
+    # TODO: ...
+    
+    # Step 4: Ensure diversity
+    # TODO: ...
+    
+    # Step 5: Fill remaining tiles
+    # TODO: ...
+    
+    return tiles
+```
+
+# Part 3: Evaluation Criteria
+
+How would you evaluate your page design?
+
+## Metrics to Consider
+
+1. **Relevance**: Do items match Alice's preferences?
+2. **Diversity**: Are tiles covering different genres/themes?
+3. **Coherence**: Does the page tell a story?
+4. **Coverage**: How much of the catalog is exposed?
+5. **Engagement** (hypothetical): Which tiles would Alice click?
+
+## Self-Assessment
+
+```python
+# Rate your design (1-5 scale)
+evaluation = {
+    "relevance": 0,     # 1=low, 5=high
+    "diversity": 0,
+    "coherence": 0,
+    "coverage": 0,
+    "predicted_engagement": 0
+}
+
+# Justify your ratings
+justification = """
+Relevance: ...
+
+Diversity: ...
+
+Coherence: ...
+
+Coverage: ...
+
+Engagement: ...
+"""
+```
+
+# Discussion Questions
+
+After completing your design, consider:
+
+1. **Personalization vs. Exploration**: How did you balance Alice's known preferences with exposing new content?
+
+2. **Context Awareness**: How did Saturday evening + Smart TV influence your tile selection?
+
+3. **Scalability**: If you had to generate pages for 100M users in real-time, what would you change?
+
+4. **Cold Start**: What if this was a brand new user with no history?
+
+5. **Business Constraints**: How would you incorporate requirements like "always show trending content"?
+
+# Example Solution (Reference)
+
+Here's one possible design:
+
+```{python}
+reference_solution = {
+    "tile_1": {
+        "type": "hero",
+        "header": "Pick Up Where You Left Off",
+        "num_items": 1,
+        "item_selection_strategy": "Most recent unfinished item",
+        "reasoning": "Saturday evening on TV = likely continuation"
+    },
+    "tile_2": {
+        "type": "carousel",
+        "header": "More Pixar Magic",
+        "num_items": 8,
+        "item_selection_strategy": "SASRec next-item predictions",
+        "reasoning": "Leverage sequential patterns from Alice's Pixar marathon"
+    },
+    "tile_3": {
+        "type": "grid",
+        "header": "Trending Family Movies",
+        "num_items": 6,
+        "item_selection_strategy": "Intersection of trending + family genre",
+        "reasoning": "Exploration: show popular content aligned with preferences"
+    },
+    "tile_4": {
+        "type": "carousel",
+        "header": "Award-Winning Animation",
+        "num_items": 5,
+        "item_selection_strategy": "High-rated animation films",
+        "reasoning": "Quality curation for Saturday movie night"
+    },
+    "tile_5": {
+        "type": "small_banner",
+        "header": "New Releases",
+        "num_items": 2,
+        "item_selection_strategy": "Recent releases matching Alice's genre preferences",
+        "reasoning": "Surface fresh content without overwhelming"
+    }
+}
+
+total_items = sum(tile["num_items"] for tile in reference_solution.values())
+print(f"Reference solution total items: {total_items}")
+
+for tile_name, tile in reference_solution.items():
+    print(f"\n{tile_name}:")
+    print(f"  Type: {tile['type']}")
+    print(f"  Header: {tile['header']}")
+    print(f"  Items: {tile['num_items']}")
+```
+
+# Key Takeaways
+
+- Page generation is **multi-objective optimization**
+- Context matters: time, device, session
+- Balance **personalization** and **exploration**
+- Tile diversity prevents redundancy
+- Real systems combine **generative models** + **business rules**
+
+**Next**: Wrap-up and research roadmap!

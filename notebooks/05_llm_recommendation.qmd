@@ -1,0 +1,463 @@
+---
+title: "Part IV: LLMs for Recommendation"
+subtitle: "Zero-Shot Recommendation and Metadata Generation"
+jupyter: python3
+---
+
+# Introduction
+
+This notebook explores how Large Language Models can enhance recommendation systems:
+
+1. **Cold-Start Problem**: Recommend new items without interaction data
+2. **Zero-Shot Recommendation**: Use LLM knowledge to suggest items
+3. **Metadata Generation**: Enrich item catalogs with LLM-generated descriptions
+4. **Semantic Search**: Embed items and queries in shared space
+
+**Key Papers:**
+
+- @geng2022recommendation introduced P5, treating recommendation as language processing
+- @zhang2023collaborative developed collaborative approaches for LLM-based recommendation
+- @hou2023large demonstrated LLMs as zero-shot rankers for recommender systems
+
+```{python}
+import numpy as np
+import polars as pl
+
+from recsys_genai import load_movielens
+
+movies, ratings, tags, links = load_movielens("../data")
+```
+
+# 1. The Cold-Start Problem
+
+**Challenge**: How do we recommend a **brand new movie** that no one has rated yet?
+
+Traditional CF methods fail: no interactions → no embeddings!
+
+## Example: New Movie Arrives
+
+```{python}
+# Simulate a new movie with only metadata
+new_movie = {
+    "movie_id": 999999,
+    "title": "Elemental (2023)",
+    "genres": ["Animation", "Comedy", "Fantasy"],
+    "description": "In a city where fire, water, land and air residents live together, " +
+                   "a fiery young woman and a go-with-the-flow guy discover something " +
+                   "elemental: how much they actually have in common."
+}
+
+print("New Movie:")
+for k, v in new_movie.items():
+    print(f"  {k}: {v}")
+```
+
+**Question**: Who should we recommend this to?
+
+**Traditional answer**: Wait for users to rate it → cold start lag!
+
+**LLM answer**: Use semantic understanding of genres & description!
+
+# 2. Zero-Shot Recommendation with LLMs
+
+## Approach 1: Prompt-Based Ranking
+
+We can ask an LLM to rank items based on user preferences!
+
+**Prompt Template:**
+
+```text
+You are a movie recommendation expert.
+
+User Profile:
+- Loved: Toy Story, Finding Nemo, Up, Inside Out
+- Preferred genres: Animation, Family, Comedy
+
+New Movies to Consider:
+1. Elemental (2023) - Animation, Comedy, Fantasy
+2. Barbie (2023) - Comedy, Adventure
+3. Oppenheimer (2023) - Drama, History
+
+Task: Rank these movies for this user (1 = best match).
+
+Output format:
+1. [Movie Title] - [Reason]
+2. [Movie Title] - [Reason]
+3. [Movie Title] - [Reason]
+```
+
+### Mock LLM Response
+
+Since we don't have live API access in this workshop, here's what an LLM would respond:
+
+```{python}
+# Mock LLM response
+mock_llm_recommendations = """
+1. Elemental (2023) - Perfect match! Shares the Animation/Comedy DNA with user's 
+   favorite Pixar films. Emotional storytelling similar to Inside Out.
+
+2. Barbie (2023) - Good fit for comedy preference, though less emphasis on animation.
+   Family-friendly and whimsical.
+
+3. Oppenheimer (2023) - Least relevant. User prefers lighter, animated content over
+   serious historical dramas.
+"""
+
+print("LLM Ranking:")
+print(mock_llm_recommendations)
+```
+
+**Key Insight**: LLM leverages **semantic understanding** of genres, themes, and patterns!
+
+## Approach 2: Embedding-Based Similarity
+
+Modern LLMs can embed text into dense vectors. We can:
+
+1. Embed movie descriptions with LLM
+2. Embed user preference descriptions
+3. Compute cosine similarity
+
+### Simulated Embeddings
+
+```{python}
+# In practice, you'd use:
+# - OpenAI embeddings API
+# - Sentence transformers (e.g., all-MiniLM-L6-v2)
+# - BERT-based models
+
+# For this workshop, we'll simulate with TF-IDF
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Create item descriptions
+alice_id = 1
+alice_favorites = (
+    ratings
+    .filter((pl.col("user_id") == alice_id) & (pl.col("rating") >= 4.5))
+    .join(movies, on="movie_id")
+    .select(["title", "genres"])
+    .head(10)
+)
+
+print("Alice's Favorite Movies:")
+print(alice_favorites)
+
+# Build text representations
+movie_texts = movies.with_columns(
+    (pl.col("title") + " " + pl.col("genres").list.join(" ")).alias("text")
+)
+
+# User profile: concatenate favorite movie texts
+alice_fav_ids = (
+    ratings
+    .filter((pl.col("user_id") == alice_id) & (pl.col("rating") >= 4.5))
+    ['movie_id']
+    .to_list()
+)
+
+alice_profile_texts = movie_texts.filter(
+    pl.col("movie_id").is_in(alice_fav_ids)
+)['text'].to_list()
+
+alice_profile = " ".join(alice_profile_texts)
+
+# All candidate movies
+candidate_texts = movie_texts['text'].to_list()
+candidate_ids = movie_texts['movie_id'].to_list()
+
+# Compute TF-IDF embeddings (proxy for LLM embeddings)
+vectorizer = TfidfVectorizer(max_features=500, stop_words='english')
+all_texts = [alice_profile] + candidate_texts
+
+tfidf_matrix = vectorizer.fit_transform(all_texts)
+user_vec = tfidf_matrix[0:1]
+item_vecs = tfidf_matrix[1:]
+
+# Compute similarities
+similarities = cosine_similarity(user_vec, item_vecs)[0]
+
+# Top-10 recommendations
+top_indices = np.argsort(-similarities)[:10]
+top_movie_ids = [candidate_ids[i] for i in top_indices]
+
+print("\nContent-Based Recommendations (LLM Proxy):")
+print(movies.filter(pl.col("movie_id").is_in(top_movie_ids)).select(["title", "genres"]))
+```
+
+**Note**: Real LLM embeddings (e.g., OpenAI `text-embedding-3-small`) would capture much richer semantics!
+
+# 3. Metadata Generation
+
+LLMs can enrich sparse movie catalogs by generating:
+
+- **Tags/Keywords**: "heartwarming", "visually stunning"
+- **Mood Labels**: "uplifting", "intense", "nostalgic"
+- **Thematic Topics**: "coming-of-age", "family bonds", "adventure"
+
+## Example Prompt for Metadata Generation
+
+```{python}
+example_movie = movies.filter(pl.col("title").str.contains("Toy Story")).head(1)
+print("Movie:")
+print(example_movie)
+
+metadata_prompt = f"""
+You are a film analyst. Generate metadata for this movie:
+
+Title: {example_movie['title'][0]}
+Genres: {example_movie['genres'][0]}
+
+Generate:
+1. Three thematic tags (e.g., friendship, adventure)
+2. Mood label (one word)
+3. Target audience (one phrase)
+4. Similar movie archetypes
+
+Output as JSON.
+"""
+
+print("\nPrompt:")
+print(metadata_prompt)
+```
+
+### Mock LLM Generated Metadata
+
+```{python}
+# Mock response from LLM
+mock_metadata = {
+    "thematic_tags": ["friendship", "coming-of-age", "loyalty"],
+    "mood": "heartwarming",
+    "target_audience": "families with young children",
+    "similar_archetypes": ["buddy comedy", "animated adventure", "toy fantasy"]
+}
+
+import json
+print("\nGenerated Metadata:")
+print(json.dumps(mock_metadata, indent=2))
+```
+
+**Use Cases:**
+
+1. **Enhanced Search**: Users can query "heartwarming family movies"
+2. **Mood-Based Recommendation**: Filter by emotional tone
+3. **Richer Embeddings**: Incorporate generated tags into item representations
+
+## Batch Metadata Generation
+
+In production, you'd generate metadata for entire catalog:
+
+```{python}
+# Simulate metadata for a sample of movies
+sample_movies = movies.head(20)
+
+# Mock metadata (in practice, call LLM API in batches)
+def generate_mock_metadata(title, genres):
+    """Simulate LLM metadata generation."""
+    # Simple heuristics for demo
+    mood_map = {
+        "Comedy": "lighthearted",
+        "Drama": "emotional",
+        "Action": "intense",
+        "Horror": "suspenseful",
+        "Animation": "whimsical"
+    }
+
+    # genres is now a list[str], get the first genre
+    primary_genre = genres[0] if genres and len(genres) > 0 else "Unknown"
+    mood = mood_map.get(primary_genre, "engaging")
+
+    return {
+        "mood": mood,
+        "era": "classic" if "(19" in title else "modern",
+        "complexity": "accessible"
+    }
+
+# Apply to sample
+enriched_movies = []
+for movie in sample_movies.to_dicts():
+    metadata = generate_mock_metadata(movie['title'], movie['genres'])
+    enriched_movies.append({
+        **movie,
+        "mood": metadata["mood"],
+        "era": metadata["era"]
+    })
+
+enriched_df = pl.DataFrame(enriched_movies)
+print("Enriched Movie Catalog:")
+print(enriched_df.select(["title", "genres", "mood", "era"]))
+```
+
+# 4. Conversational Recommendation
+
+**Scenario**: User describes their current state/preference in natural language.
+
+## User Query Example
+
+```{python}
+user_query = "I'm tired after a long day. Want something calm, uplifting, maybe a bit nostalgic. No intense action or horror."
+
+print(f"User Query: {user_query}")
+```
+
+## LLM-Powered Filtering
+
+```{python}
+# Prompt for filtering
+filtering_prompt = f"""
+User preference: "{user_query}"
+
+Movie catalog (sample):
+{enriched_df.select(['title', 'genres', 'mood']).head(10).to_pandas().to_string()}
+
+Task: Identify which movies best match the user's mood and constraints.
+Output: List of movie titles, ranked by relevance.
+"""
+
+# Mock response
+mock_filtered = [
+    "Toy Story (1995) - Nostalgic, uplifting, family-friendly",
+    "Forrest Gump (1994) - Emotional but hopeful, calm pacing",
+    "The Princess Bride (1987) - Whimsical adventure, feel-good"
+]
+
+print("\nLLM-Filtered Recommendations:")
+for rec in mock_filtered:
+    print(f"  • {rec}")
+```
+
+**Advantages over traditional filtering:**
+- Natural language interface
+- Captures nuanced preferences ("a bit nostalgic")
+- Can reason about implicit constraints ("no intense action")
+
+# 5. Evaluation Challenges
+
+## Offline vs. Online Metrics
+
+**Offline (traditional):**
+- Recall@K, NDCG@K
+- Require historical interaction data
+
+**Online (for LLM methods):**
+- Click-through rate (CTR)
+- Watch time / engagement
+- User satisfaction surveys
+
+**Problem**: LLM recommendations may **rank differently** but still be **relevant**!
+
+### Offline Metric Limitation Example
+
+```{python}
+# Traditional ground truth: Alice's next watched movie
+alice_next_movie = (
+    ratings
+    .filter(pl.col("user_id") == alice_id)
+    .sort("timestamp")
+    .tail(1)
+    .join(movies, on="movie_id")
+)
+
+print("Alice's Actual Next Movie:")
+print(alice_next_movie.select(["title", "genres"]))
+
+# LLM recommendation list (from earlier)
+llm_recs = top_movie_ids[:10]
+
+# Check if actual movie is in LLM recommendations
+actual_movie_id = alice_next_movie['movie_id'][0]
+hit = actual_movie_id in llm_recs
+
+print(f"\nDid LLM recommend this movie? {hit}")
+print(f"Recall@10: {1.0 if hit else 0.0}")
+```
+
+**Key Issue**: Even if LLM didn't predict the *exact* next movie, its suggestions might be **equally good alternatives**!
+
+### Diversity & Novelty Metrics
+
+```{python}
+from recsys_genai import diversity_at_k
+
+# Prepare genre sets (genres is now a list[str])
+movie_genres_dict = {
+    row['movie_id']: set(row['genres']) if row['genres'] and len(row['genres']) > 0 else set()
+    for row in movies.to_dicts()
+}
+
+# Compute diversity of LLM recommendations
+llm_diversity = diversity_at_k(llm_recs, movie_genres_dict, k=10)
+
+print(f"LLM Recommendation Diversity: {llm_diversity:.4f}")
+
+# Compare with popularity-based baseline
+popular_movies = (
+    ratings
+    .group_by("movie_id")
+    .agg(pl.len().alias("count"))
+    .sort("count", descending=True)
+    .head(10)
+    ['movie_id']
+    .to_list()
+)
+
+popular_diversity = diversity_at_k(popular_movies, movie_genres_dict, k=10)
+
+print(f"Popular Baseline Diversity: {popular_diversity:.4f}")
+```
+
+**Insight**: LLM recommendations often have **higher diversity** than popularity-based methods!
+
+# 6. Hybrid Approach: Combining CF + LLM
+
+Best of both worlds:
+
+1. **Collaborative Filtering**: Captures implicit patterns from interactions
+2. **LLM**: Handles cold-start, adds semantic understanding
+
+## Simple Hybrid Strategy
+
+```{python}
+# Get CF recommendations (from EASE/MF)
+# Get LLM recommendations (from embeddings)
+# Combine with weighted score
+
+cf_scores = {mid: 0.8 for mid in popular_movies[:5]}  # Mock CF scores
+llm_scores = {mid: 0.6 for mid in llm_recs[:5]}  # Mock LLM scores
+
+# Merge
+all_movie_ids = set(cf_scores.keys()) | set(llm_scores.keys())
+hybrid_scores = {}
+
+for mid in all_movie_ids:
+    cf_score = cf_scores.get(mid, 0.0)
+    llm_score = llm_scores.get(mid, 0.0)
+
+    # Weighted combination
+    hybrid_scores[mid] = 0.7 * cf_score + 0.3 * llm_score
+
+# Top-10 hybrid
+hybrid_top = sorted(hybrid_scores.items(), key=lambda x: x[1], reverse=True)[:10]
+hybrid_movie_ids = [mid for mid, _ in hybrid_top]
+
+print("Hybrid (CF + LLM) Recommendations:")
+print(movies.filter(pl.col("movie_id").is_in(hybrid_movie_ids)).select(["title", "genres"]))
+```
+
+# Key Takeaways
+
+1. **Zero-Shot Recommendation**: LLMs can recommend without training data
+2. **Metadata Enrichment**: LLMs generate tags, moods, themes
+3. **Conversational Interface**: Natural language queries unlock new UX
+4. **Evaluation is Hard**: Traditional metrics may not capture LLM value
+5. **Hybrid Models**: Combine CF (patterns) + LLM (semantics)
+
+**Important Papers:**
+
+- **P5**: Treats recommendation as sequence-to-sequence task
+- **LLMRec**: Uses LLM as ranker for candidate items
+- **ChatRec**: Conversational recommendation with LLMs
+
+**Next**: Part V - Generating entire recommendation pages!
+
+From ranking items → generating layouts
+

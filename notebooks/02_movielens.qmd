@@ -1,0 +1,694 @@
+---
+title: 'Part II.A: MovieLens Dataset Exploration'
+subtitle: Understanding User Behavior and Rating Patterns
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .qmd
+      format_name: quarto
+      format_version: '1.0'
+      jupytext_version: 1.19.1
+  kernelspec:
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
+---
+
+# Introduction
+
+Before building recommendation systems, we need to understand our data. This notebook explores the **MovieLens dataset** to uncover:
+
+1. **Dataset Structure** - Movies, ratings, tags, and links
+2. **Rating Patterns** - Distribution, trends over time, by genre/year
+3. **Popularity Analysis** - Which movies are popular? Does popularity correlate with quality?
+4. **User Behavior** - Activity levels, engagement patterns, cold start challenges
+5. **Example Users & Movies** - Define consistent examples for later notebooks
+
+**Why This Matters:**
+
+- Understanding data characteristics helps us choose appropriate algorithms
+- User behavior patterns (cold start, engagement) motivate different recommendation approaches
+- Rating distributions affect how we interpret predictions
+- Temporal patterns are crucial for sequential models (Part III)
+
+```{python}
+#| label: imports
+
+import numpy as np
+import polars as pl
+from pathlib import Path
+
+from plotnine import *
+import pandas as pd
+from IPython.display import display, Markdown
+from sklearn.decomposition import PCA
+
+from recsys_genai import load_movielens
+
+# Set default theme for all plots
+theme_set(theme_minimal() + theme(
+    plot_title=element_text(weight='bold', size=14),
+    axis_title=element_text(size=12),
+    figure_size=(8, 6),
+))
+```
+
+# Load MovieLens Data
+
+```{python}
+#| label: load-data
+
+movies, ratings, tags, links = load_movielens("../data")
+
+dataset_summary = f"""
+**Dataset Summary:**
+
+- **Movies:** {len(movies):,}
+- **Ratings:** {len(ratings):,}
+- **Users:** {ratings['user_id'].n_unique():,}
+- **Tags:** {len(tags):,}
+- **Links:** {len(links):,}
+- **Sparsity:** {len(ratings) / (ratings['user_id'].n_unique() * len(movies)) * 100:.4f}%
+"""
+
+display(Markdown(dataset_summary))
+```
+
+# Inspect Data
+
+## Movies Dataset
+
+```{python}
+#| label: inspect-movies
+
+movies_stats = f"""
+**Movies Dataset Overview:**
+
+- Total movies: {len(movies):,}
+- Columns: {', '.join(movies.columns)}
+- Unique genres: {len(set([g for genres in movies['genres'].to_list() for g in genres if g != '(no genres listed)'])):,}
+"""
+display(Markdown(movies_stats))
+display(movies.head(10))
+```
+
+## Ratings Dataset
+
+```{python}
+#| label: inspect-ratings
+
+avg_rating = ratings['rating'].mean()
+ratings_stats = f"""
+**Ratings Dataset Overview:**
+
+- Total ratings: {len(ratings):,}
+- Average rating: {avg_rating:.2f}
+- Rating range: {ratings['rating'].min():.1f} - {ratings['rating'].max():.1f}
+- Time span: {ratings['timestamp'].min()} to {ratings['timestamp'].max()}
+"""
+display(Markdown(ratings_stats))
+display(ratings.head(10))
+```
+
+## Tags Dataset
+
+```{python}
+#| label: inspect-tags
+
+tags_stats = f"""
+**Tags Dataset Overview:**
+
+- Total tags: {len(tags):,}
+- Unique tags: {tags['tag'].n_unique():,}
+- Users who tagged: {tags['user_id'].n_unique():,}
+- Movies tagged: {tags['movie_id'].n_unique():,}
+"""
+display(Markdown(tags_stats))
+display(tags.head(10))
+```
+
+## Links Dataset
+
+```{python}
+#| label: inspect-links
+
+links_stats = f"""
+**Links Dataset Overview:**
+
+- Total links: {len(links):,}
+- Movies with IMDB IDs: {links['imdb_id'].null_count():,}
+- Movies with TMDB IDs: {links['tmdb_id'].null_count():,}
+"""
+display(Markdown(links_stats))
+display(links.head(10))
+```
+
+# Rating Distribution
+
+What ratings do users give?
+
+```{python}
+#| label: plot-rating-distribution
+
+# Create rating distribution histogram
+(
+    ggplot(ratings, aes(x="rating")) +
+    geom_histogram(binwidth=0.5, fill="steelblue", alpha=0.7) +
+    labs(
+        title="Rating Distribution",
+        x="Rating",
+        y="Count"
+    )
+)
+```
+
+**Observation**: Most ratings are positive (3.5-5.0). This creates implicit "thumbs up" when rating ≥ 4.0.
+
+## Average Rating by Release Year
+
+How do ratings vary by movie release year?
+
+```{python}
+#| label: rating-by-year
+
+# Extract year from movie title and calculate average rating
+movies_with_year = movies.with_columns([
+    pl.col("title").str.extract(r'\((\d{4})\)', 1).cast(pl.Int32).alias("year")
+]).filter(pl.col("year").is_not_null())
+
+# Join with ratings and calculate average rating per year
+ratings_by_year = (
+    ratings
+    .join(movies_with_year.select(["movie_id", "year"]), on="movie_id")
+    .group_by("year")
+    .agg([
+        pl.mean("rating").alias("avg_rating"),
+        pl.len().alias("num_ratings")
+    ])
+    .filter(pl.col("num_ratings") >= 100)  # Filter years with at least 100 ratings
+    .sort("year")
+)
+
+year_stats = f"""
+**Average Rating by Release Year:**
+
+- Years analyzed: {len(ratings_by_year)}
+- Highest rated year: {ratings_by_year.sort('avg_rating', descending=True)['year'][0]} (avg: {ratings_by_year.sort('avg_rating', descending=True)['avg_rating'][0]:.2f})
+- Lowest rated year: {ratings_by_year.sort('avg_rating')['year'][0]} (avg: {ratings_by_year.sort('avg_rating')['avg_rating'][0]:.2f})
+"""
+display(Markdown(year_stats))
+```
+
+```{python}
+#| label: plot-rating-by-year
+
+# Create bar chart
+(
+    ggplot(ratings_by_year, aes(x='year', y='avg_rating')) +
+    geom_col(fill='steelblue', alpha=0.7) +
+    geom_hline(yintercept=ratings['rating'].mean(),
+               linetype='dashed', color='red', alpha=0.7) +
+    labs(
+        title='Average Rating by Movie Release Year',
+        x='Release Year',
+        y='Average Rating',
+        caption='Red dashed line: Overall mean rating | Only years with ≥100 ratings shown'
+    ) +
+    ylim(0, 5) +
+    theme(axis_text_x=element_text(rotation=45, hjust=1))
+)
+```
+
+**Key Insight**: Older movies tend to have slightly higher average ratings, likely due to survivorship bias - only the best old movies remain popular enough to be rated.
+
+## Average Rating by Genre
+
+How do ratings vary across different genres?
+
+```{python}
+#| label: rating-by-genre
+
+# Extract first genre and calculate average rating
+movies_with_genre = movies.with_columns([
+    pl.col("genres").list.first().alias("primary_genre")
+]).filter(
+    (pl.col("primary_genre").is_not_null()) &
+    (pl.col("primary_genre") != "(no genres listed)")
+)
+
+# Join with ratings and calculate average rating per genre
+ratings_by_genre = (
+    ratings
+    .join(movies_with_genre.select(["movie_id", "primary_genre"]), on="movie_id")
+    .group_by("primary_genre")
+    .agg([
+        pl.mean("rating").alias("avg_rating"),
+        pl.len().alias("num_ratings")
+    ])
+    .filter(pl.col("num_ratings") >= 100)  # Filter genres with at least 100 ratings
+    .sort("avg_rating", descending=True)
+)
+
+genre_stats = f"""
+**Average Rating by Primary Genre:**
+
+- Genres analyzed: {len(ratings_by_genre)}
+- Highest rated genre: {ratings_by_genre['primary_genre'][0]} (avg: {ratings_by_genre['avg_rating'][0]:.2f})
+- Lowest rated genre: {ratings_by_genre.sort('avg_rating')['primary_genre'][0]} (avg: {ratings_by_genre.sort('avg_rating')['avg_rating'][0]:.2f})
+"""
+display(Markdown(genre_stats))
+```
+
+```{python}
+#| label: plot-rating-by-genre
+
+# Create horizontal bar chart
+(
+    ggplot(ratings_by_genre,
+           aes(x='reorder(primary_genre, avg_rating)', y='avg_rating')) +
+    geom_col(fill='steelblue', alpha=0.7) +
+    geom_hline(yintercept=ratings['rating'].mean(),
+               linetype='dashed', color='red', alpha=0.7) +
+    coord_flip() +
+    labs(
+        title='Average Rating by Primary Genre',
+        x='Genre',
+        y='Average Rating',
+        caption='Red dashed line: Overall mean rating | Only genres with ≥100 ratings shown'
+    ) +
+    ylim(0, 5)
+)
+```
+
+**Key Insight**: Documentary, Film-Noir, and War films tend to receive higher ratings, while Horror and Sci-Fi tend to be rated lower. This reflects both audience preferences and the quality distribution within genres.
+
+## Rating Trends Over Time
+
+How have user ratings changed over time?
+
+```{python}
+#| label: rating-trends-data
+
+# Extract year-month from timestamp and calculate monthly statistics
+monthly_ratings = ratings.with_columns([
+    pl.col("timestamp").dt.truncate("1mo").alias("month")
+]).group_by("month").agg([
+    pl.mean("rating").alias("avg_rating"),
+    pl.std("rating").alias("std_rating"),
+    pl.len().alias("num_ratings")
+]).sort("month")
+
+# Calculate upper and lower bounds for standard deviation
+monthly_ratings = monthly_ratings.with_columns([
+    (pl.col("avg_rating") + pl.col("std_rating")).alias("upper_bound"),
+    (pl.col("avg_rating") - pl.col("std_rating")).alias("lower_bound")
+])
+
+trends_stats = f"""
+**Rating Trends Statistics:**
+
+- Time period: {monthly_ratings['month'].min()} to {monthly_ratings['month'].max()}
+- Overall average rating: {ratings['rating'].mean():.3f}
+- Highest monthly average: {monthly_ratings['avg_rating'].max():.3f}
+- Lowest monthly average: {monthly_ratings['avg_rating'].min():.3f}
+- Average monthly std dev: {monthly_ratings['std_rating'].mean():.3f}
+"""
+display(Markdown(trends_stats))
+```
+
+```{python}
+#| label: plot-rating-trends
+
+# Prepare data for plotting
+trends_df = monthly_ratings
+
+# Create time series plot with LM smoothing and standard deviation ribbon
+(
+    ggplot(trends_df, aes(x='month', y='avg_rating')) +
+    geom_ribbon(aes(ymin='lower_bound', ymax='upper_bound'),
+                alpha=0.2, fill='lightblue') +
+    geom_point(color='steelblue', size=1.5, alpha=0.5) +
+    geom_smooth(method='lm', color='blue', size=1.5, se=True, alpha=0.2) +
+    geom_hline(yintercept=ratings['rating'].mean(),
+               linetype='dashed', color='red', size=1, alpha=0.7) +
+    labs(
+        title='Average Rating Over Time (Monthly with Linear Trend)',
+        x='Date',
+        y='Average Rating',
+        caption='Blue line: Linear regression trend with 95% CI | Light blue ribbon: ±1 std dev | Red dashed: Overall mean'
+    ) +
+    ylim(2.5, 5) +
+    theme(axis_text_x=element_text(rotation=45, hjust=1))
+)
+```
+
+**Key Insight**: Average ratings show remarkable stability over time (mostly between 3.4-3.7), suggesting consistent rating behavior across the platform's history. The narrow standard deviation band indicates users broadly agree on rating patterns.
+
+# Popularity Bias
+
+Which movies are most popular?
+
+```{python}
+#| label: plot-popularity-distribution
+
+# Calculate movie popularity
+top_n = 20
+popularity = (
+    ratings
+    .group_by("movie_id")
+    .agg(pl.len().alias("count"))
+    .join(movies, on="movie_id")
+    .sort("count", descending=True)
+    .head(top_n)
+)
+
+# Create horizontal bar chart
+(
+    ggplot(popularity, aes(x="reorder(title, count)", y="count")) +
+    geom_col(fill="steelblue", alpha=0.7) +
+    coord_flip() +
+    labs(
+        title=f"Top {top_n} Most Popular Movies",
+        x="Movie",
+        y="Number of Ratings"
+    )
+)
+```
+
+**Key Insight**: Heavy concentration in blockbusters - the "long tail" problem!
+
+## Popularity Bias Analysis
+
+Does popularity correlate with quality? Let's investigate.
+
+```{python}
+#| label: popularity-bias-data
+
+# Calculate popularity and average rating for each movie
+movie_stats = ratings.group_by("movie_id").agg([
+    pl.len().alias("num_ratings"),
+    pl.mean("rating").alias("avg_rating")
+]).join(movies.select(["movie_id", "title"]), on="movie_id")
+
+# Filter movies with at least 10 ratings to reduce noise
+movie_stats_filtered = movie_stats.filter(pl.col("num_ratings") >= 10)
+
+bias_stats = f"""
+**Popularity Bias Statistics:**
+
+- Movies with ≥10 ratings: {len(movie_stats_filtered):,}
+- Correlation (popularity vs. avg rating): {movie_stats_filtered.select(pl.corr('num_ratings', 'avg_rating'))[0,0]:.3f}
+- Most popular movie: {movie_stats.sort('num_ratings', descending=True)['title'][0]} ({movie_stats.sort('num_ratings', descending=True)['num_ratings'][0]:,} ratings)
+- Highest rated (≥100 ratings): {movie_stats.filter(pl.col('num_ratings') >= 100).sort('avg_rating', descending=True)['title'][0]} (avg: {movie_stats.filter(pl.col('num_ratings') >= 100).sort('avg_rating', descending=True)['avg_rating'][0]:.2f})
+"""
+display(Markdown(bias_stats))
+```
+
+```{python}
+#| label: plot-popularity-bias
+
+# Prepare data
+plot_data = movie_stats_filtered
+
+# Create scatter plot with LOWESS smoothing
+(
+    ggplot(plot_data, aes(x='num_ratings', y='avg_rating')) +
+    geom_point(alpha=0.15, size=0.8, color='steelblue') +
+    geom_smooth(method='lowess', color='red', size=1.5, se=False, span=0.3) +
+    geom_hline(yintercept=plot_data['avg_rating'].mean(),
+               linetype='dashed', color='orange', size=1, alpha=0.7) +
+    labs(
+        title='Popularity Bias: Number of Ratings vs. Average Rating',
+        x='Number of Ratings (log scale)',
+        y='Average Rating',
+        caption='Red line: LOWESS smoothing | Orange dashed: Overall mean rating'
+    ) +
+    scale_x_continuous(trans='log10') +
+    ylim(0, 5)
+)
+```
+
+**Key Insight**: Popular movies tend to have slightly higher ratings, but the effect is modest. This suggests:
+- Selection bias: people rate movies they expect to like
+- Quality does matter: truly bad movies don't get many ratings
+- Recommendation challenge: balancing popularity with personalization
+
+# User Activity Distribution
+
+```{python}
+#| label: plot-user-activity
+
+# Calculate user activity (ratings per user)
+user_counts = (
+    ratings
+    .group_by("user_id")
+    .agg(pl.len().alias("num_ratings"))
+)
+
+# Create histogram with log scale
+(
+    ggplot(user_counts, aes(x="num_ratings")) +
+    geom_histogram(bins=50, fill="steelblue", alpha=0.7) +
+    scale_x_log10() +
+    labs(
+        title="User Activity Distribution",
+        x="Number of Ratings (log scale)",
+        y="Number of Users"
+    )
+)
+```
+
+**Observation**: Power law distribution - few very active users, many casual users.
+
+## User Engagement Over Time
+
+How long do users stay engaged with the platform?
+
+```{python}
+#| label: user-engagement-time
+
+# Calculate user engagement metrics
+user_engagement = ratings.group_by("user_id").agg([
+    pl.len().alias("num_ratings"),
+    pl.min("timestamp").alias("first_rating"),
+    pl.max("timestamp").alias("last_rating")
+])
+
+# Calculate time difference in days
+user_engagement = user_engagement.with_columns([
+    ((pl.col("last_rating") - pl.col("first_rating")).dt.total_seconds() / (24 * 3600)).alias("engagement_days")
+])
+
+# Filter users with at least 2 ratings
+user_engagement = user_engagement.filter(pl.col("num_ratings") > 1)
+
+avg_days = float(user_engagement['engagement_days'].mean())
+median_days = float(user_engagement['engagement_days'].median())
+max_days = float(user_engagement['engagement_days'].max())
+
+engagement_stats = f"""
+**User Engagement Metrics:**
+
+- Users analyzed: {len(user_engagement):,}
+- Average engagement period: {avg_days:.1f} days
+- Median engagement period: {median_days:.1f} days
+- Max engagement period: {max_days:.0f} days
+"""
+display(Markdown(engagement_stats))
+```
+
+```{python}
+#| label: plot-engagement-scatter
+
+#| fig-width: 7
+
+#| fig-height: 4
+
+#| out-width: "100%"
+
+# Prepare data for plotting
+plot_data = user_engagement
+
+# Define time scale breakpoints and labels
+# 1 minute, 1 hour, 1 day, 1 week, 1 month, 1 year, 10 years
+time_breaks = [
+    1/1440,     # 1 minute (1 day / 1440 minutes)
+    1/24,       # 1 hour
+    1,          # 1 day
+    7,          # 1 week
+    30,         # 1 month (~30 days)
+    365,        # 1 year
+    3650        # 10 years
+]
+
+time_labels = ['1 min', '1 hour', '1 day', '1 week', '1 month', '1 year', '10 years']
+
+# Create scatter plot with LOWESS smoothing
+(
+    ggplot(plot_data, aes(x='num_ratings', y='engagement_days')) +
+    geom_point(alpha=0.1, size=0.5, color='steelblue') +
+    geom_smooth(method='lowess', color='red', size=1.5, se=False, span=0.1) +
+    labs(
+        title='User Engagement: Number of Ratings vs. Time Active',
+        x='Number of Ratings (log scale)',
+        y='Time Between First and Last Rating',
+        caption='Red line: LOWESS smoothing'
+    ) +
+    scale_x_continuous(trans='log10') +
+    scale_y_continuous(trans='log10', breaks=time_breaks, labels=time_labels)
+)
+```
+
+**Key Insight**: More active users tend to stay engaged longer, but the relationship isn't perfectly linear - some users rate many movies in short bursts.
+
+## Rating Velocity
+
+How quickly do users rate after joining?
+
+```{python}
+#| label: rating-velocity
+
+# Calculate rating velocity (ratings per day) for each user
+user_velocity = user_engagement.with_columns([
+    (pl.col("num_ratings") / (pl.col("engagement_days") + 1)).alias("ratings_per_day")
+]).filter(pl.col("engagement_days") > 0)
+
+velocity_stats = f"""
+**Rating Velocity:**
+
+- Average velocity: {user_velocity['ratings_per_day'].mean():.2f} ratings/day
+- Median velocity: {user_velocity['ratings_per_day'].median():.2f} ratings/day
+- Users rating >1 per day: {len(user_velocity.filter(pl.col('ratings_per_day') > 1)):,} ({len(user_velocity.filter(pl.col('ratings_per_day') > 1)) / len(user_velocity) * 100:.1f}%)
+"""
+display(Markdown(velocity_stats))
+
+# Show top velocity users
+display(Markdown("**Top 10 Most Active Users (by velocity):**"))
+display(user_velocity.sort("ratings_per_day", descending=True).head(10).select([
+    "user_id", "num_ratings", "engagement_days", "ratings_per_day"
+]))
+```
+
+**Observation**: Rating velocity varies dramatically - some users binge-rate, others rate occasionally. This temporal pattern is crucial for sequential models (Part III).
+
+# Examples
+
+## Define Example Movies
+
+Let's select a diverse set of popular movies to use as examples throughout our analysis.
+
+```{python}
+#| label: find-popular-movies
+
+# First, let's look at some popular movies to choose from
+popular_movies = (
+    ratings.group_by("movie_id")
+    .agg([
+        pl.len().alias("rating_count"),
+        pl.mean("rating").alias("avg_rating")
+    ])
+    .filter(pl.col("rating_count") > 100)
+    .join(movies, on="movie_id")
+    .sort("rating_count", descending=True)
+    .select(["movie_id", "title", "genres", "rating_count", "avg_rating"])
+)
+
+display(Markdown("**Popular Movies (to help select examples):**"))
+display(popular_movies.head(50))
+```
+
+```{python}
+#| label: define-example-movies
+
+# Define example movies - a diverse set across genres and eras
+EXAMPLE_MOVIE_IDS = [
+    1,      # Toy Story (1995) - Animation/Children's
+    2,      # Jumanji (1995) - Adventure/Fantasy
+    32,     # Twelve Monkeys (1995) - Sci-Fi/Thriller
+    110,    # Braveheart (1995) - Action/Drama/War
+    260,    # Star Wars: Episode IV (1977) - Action/Adventure/Sci-Fi
+    296,    # Pulp Fiction (1994) - Crime/Drama
+    318,    # Shawshank Redemption (1994) - Crime/Drama
+    356,    # Forrest Gump (1994) - Comedy/Drama/Romance
+]
+
+# Display the example movies
+example_movies = movies.filter(pl.col("movie_id").is_in(EXAMPLE_MOVIE_IDS))
+example_stats = f"""
+**Example Movies for Analysis:**
+
+- Total selected: {len(example_movies)}
+- These movies will be highlighted in visualizations throughout the workshop
+"""
+display(Markdown(example_stats))
+display(example_movies)
+```
+
+```{python}
+#| label: example-movies-stats
+
+# Get statistics for our example movies
+example_movie_stats = ratings.filter(pl.col("movie_id").is_in(EXAMPLE_MOVIE_IDS)).group_by("movie_id").agg([
+    pl.len().alias("rating_count"),
+    pl.mean("rating").alias("avg_rating")
+]).join(movies, on="movie_id").sort("rating_count", descending=True)
+
+display(Markdown("**Statistics for Example Movies:**"))
+display(example_movie_stats.select(["title", "rating_count", "avg_rating"]))
+```
+
+## Meet Alice
+
+Our running example throughout the workshop!
+
+```{python}
+#| label: alice-profile
+
+alice_id = 1
+alice_ratings = ratings.filter(pl.col("user_id") == alice_id).join(
+    movies, on="movie_id"
+).sort("timestamp")
+
+alice_stats = f"""
+**Alice's Profile (User {alice_id}):**
+
+- Total movies rated: {len(alice_ratings)}
+- Average rating: {alice_ratings['rating'].mean():.2f}
+- Favorite genres: {', '.join([g for genres in alice_ratings.sort("rating", descending=True).head(10)['genres'].to_list() for g in genres][:5])}
+- Rating distribution: {alice_ratings['rating'].value_counts().sort('rating').to_dict()}
+"""
+display(Markdown(alice_stats))
+```
+
+```{python}
+#| label: alice-ratings-chronological
+
+display(Markdown("**ALICE'S RATINGS (chronological, first 10):**"))
+display(alice_ratings.select(["title", "rating", "genres", "timestamp"]).head(10))
+```
+
+```{python}
+#| label: alice-top-rated
+
+alice_top_count = len(alice_ratings.filter(pl.col("rating") >= 4.5))
+display(Markdown(f"**ALICE'S TOP-RATED MOVIES (rating >= 4.5, showing 10 of {alice_top_count}):**"))
+display(alice_ratings.filter(pl.col("rating") >= 4.5).select(["title", "rating", "genres"]).head(10))
+```
+
+# Summary and Next Steps
+
+We've explored the MovieLens dataset and uncovered several key insights:
+
+1. **Rating Patterns**: Ratings are mostly positive (3.5-5.0), stable over time, and vary by genre/year
+2. **Popularity Bias**: Popular movies get slightly higher ratings, but the correlation is modest
+3. **User Behavior**: Power-law distribution of activity, with many cold-start users
+4. **Temporal Patterns**: Engagement varies widely - some users binge-rate, others rate slowly
+5. **Example Data**: We've defined example movies and Alice (User 1) for use throughout the workshop
+
+**In the next notebook (`02_foundations.qmd`)**, we'll build recommendation systems using:
+
+- **Matrix Factorization**: Learn latent factors from user-item interactions
+- **EASE**: Simple yet powerful item-item collaborative filtering
+- **Content vs. Collaborative**: Compare different approaches
+
+These insights will guide our choice of algorithms and help us understand model behavior!

@@ -1,0 +1,767 @@
+---
+title: 'Part II.B: Foundation Recommendation Algorithms'
+subtitle: Matrix Factorization and EASE
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .qmd
+      format_name: quarto
+      format_version: '1.0'
+      jupytext_version: 1.19.1
+  kernelspec:
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
+---
+
+# Introduction
+
+Now that we understand the MovieLens dataset, let's build recommendation systems! This notebook covers classical collaborative filtering techniques:
+
+1. **Matrix Factorization (MF)** - Latent factor models [@koren2009matrix]
+2. **EASE** - Embarrassingly Shallow Autoencoders [@steck2019embarrassingly]
+3. **Comparison** - How do they differ? When to use each?
+4. **Content vs. Collaborative** - Comparing approaches
+
+**Key Papers:**
+
+- @koren2009matrix developed matrix factorization techniques that won the Netflix Prize
+- @steck2019embarrassingly introduced EASE, an embarrassingly simple yet effective approach
+
+**Prerequisites:** Run `02_movielens.qmd` first to understand the data!
+
+```{python}
+#| label: imports
+
+import numpy as np
+import polars as pl
+import torch
+from pathlib import Path
+
+from plotnine import *
+import pandas as pd
+from IPython.display import display, Markdown
+from sklearn.decomposition import PCA
+from scipy.sparse import coo_matrix
+
+from recsys_genai import (
+    load_movielens,
+    create_user_item_matrix,
+    MatrixFactorization,
+    EASE,
+    recall_at_k,
+    ndcg_at_k,
+    evaluate_ranking
+)
+
+# Set default theme for all plots
+theme_set(theme_minimal() + theme(
+    plot_title=element_text(weight='bold', size=14),
+    axis_title=element_text(size=12)
+))
+```
+
+# Load Data
+
+```{python}
+#| label: load-data
+
+movies, ratings, tags, links = load_movielens("../data")
+
+# Define example movies (same as in 02_movielens.qmd)
+EXAMPLE_MOVIE_IDS = [
+    1,      # Toy Story (1995) - Animation/Children's
+    2,      # Jumanji (1995) - Adventure/Fantasy
+    32,     # Twelve Monkeys (1995) - Sci-Fi/Thriller
+    110,    # Braveheart (1995) - Action/Drama/War
+    260,    # Star Wars: Episode IV (1977) - Action/Adventure/Sci-Fi
+    296,    # Pulp Fiction (1994) - Crime/Drama
+    318,    # Shawshank Redemption (1994) - Crime/Drama
+    356,    # Forrest Gump (1994) - Comedy/Drama/Romance
+]
+
+# Define Alice
+alice_id = 1
+
+data_stats = f"""
+**Loaded Data:**
+
+- Movies: {len(movies):,}
+- Ratings: {len(ratings):,}
+- Users: {ratings['user_id'].n_unique():,}
+- Example movies defined: {len(EXAMPLE_MOVIE_IDS)}
+- Example user: Alice (User {alice_id})
+"""
+display(Markdown(data_stats))
+```
+
+# Matrix Factorization
+
+**Idea**: Decompose user-item matrix into low-rank factors
+
+$$
+R \approx U \times V^T
+$$
+
+where:
+- $U$: user latent factors (users × k)
+- $V$: item latent factors (items × k)
+
+Users and items are embedded in the same latent space!
+
+## Prepare Data for MF
+
+```{python}
+#| label: prepare-mf-data
+
+# Sample subset for speed (first 10K users, 5K movies)
+sample_users = ratings['user_id'].unique().sort().head(10000).to_list()
+sample_movies = (
+    ratings.filter(pl.col("user_id").is_in(sample_users))
+    .group_by("movie_id")
+    .agg(pl.len().alias("count"))
+    .sort("count", descending=True)
+    .head(5000)
+    .select("movie_id")
+    .to_series()
+    .to_list()
+)
+
+# Filter ratings
+train_ratings = ratings.filter(
+    pl.col("user_id").is_in(sample_users) &
+    pl.col("movie_id").is_in(sample_movies)
+)
+
+train_stats = f"""
+**Training Data Statistics:**
+
+- Total ratings: {len(train_ratings):,}
+- Number of users: {len(sample_users):,}
+- Number of movies: {len(sample_movies):,}
+- Sparsity: {len(train_ratings) / (len(sample_users) * len(sample_movies)) * 100:.4f}%
+- Average rating: {train_ratings['rating'].mean():.2f}
+- Ratings per user (avg): {len(train_ratings) / len(sample_users):.1f}
+- Ratings per movie (avg): {len(train_ratings) / len(sample_movies):.1f}
+"""
+display(Markdown(train_stats))
+
+display(Markdown("**TRAINING RATINGS SAMPLE (first 10):**"))
+display(train_ratings.head(10))
+
+# Create user/item ID mappings
+user_to_idx = {uid: idx for idx, uid in enumerate(sorted(train_ratings['user_id'].unique()))}
+item_to_idx = {mid: idx for idx, mid in enumerate(sorted(train_ratings['movie_id'].unique()))}
+
+# Prepare training data
+user_indices = [user_to_idx[uid] for uid in train_ratings['user_id'].to_list()]
+item_indices = [item_to_idx[mid] for mid in train_ratings['movie_id'].to_list()]
+rating_values = train_ratings['rating'].to_list()
+```
+
+## Train Matrix Factorization
+
+```{python}
+#| label: train-mf
+
+mf_model = MatrixFactorization(
+    num_users=len(user_to_idx),
+    num_items=len(item_to_idx),
+    num_factors=20,
+    learning_rate=0.01,
+    reg=0.01
+)
+
+mf_model.fit(
+    user_ids=user_indices,
+    item_ids=item_indices,
+    ratings=rating_values,
+    epochs=20,
+    verbose=True
+)
+```
+
+## Visualize Item Embeddings
+
+Let's visualize the learned embeddings for our example movies using dimensionality reduction.
+
+```{python}
+#| label: visualize-mf-embeddings
+
+# Get item embeddings for our example movies
+example_indices = [item_to_idx[mid] for mid in EXAMPLE_MOVIE_IDS if mid in item_to_idx]
+example_embeddings = mf_model.item_factors[example_indices]
+
+# Apply PCA for 2D visualization
+pca = PCA(n_components=2)
+embeddings_2d = pca.fit_transform(example_embeddings)
+
+# Prepare data for plotnine
+embedding_data = []
+for i, idx in enumerate(example_indices):
+    movie_id = [mid for mid, midx in item_to_idx.items() if midx == idx][0]
+    movie_title = movies.filter(pl.col("movie_id") == movie_id)['title'][0]
+    short_title = movie_title.split('(')[0].strip()
+
+    embedding_data.append({
+        'PC1': embeddings_2d[i, 0],
+        'PC2': embeddings_2d[i, 1],
+        'title': short_title,
+        'movie_id': movie_id
+    })
+
+embedding_df = pd.DataFrame(embedding_data)
+
+display(Markdown(f"**Explained variance:** PC1={pca.explained_variance_ratio_[0]:.2%}, PC2={pca.explained_variance_ratio_[1]:.2%}"))
+
+# Create visualization with plotnine
+(
+    ggplot(embedding_df, aes(x='PC1', y='PC2', label='title')) +
+    geom_point(size=5, alpha=0.7, color='steelblue') +
+    geom_text(size=9, nudge_y=0.1, fontweight='bold', color='black',
+              va='bottom', ha='center') +
+    labs(
+        title='Matrix Factorization: Item Embeddings (PCA Projection)',
+        x='First Principal Component',
+        y='Second Principal Component'
+    ) +
+    theme(figure_size=(12, 8))
+)
+```
+
+## Predicted Ratings for Example Movies
+
+```{python}
+#| label: mf-predict-alice
+
+# Get predicted ratings for Alice on example movies
+if alice_id in user_to_idx:
+    alice_idx = user_to_idx[alice_id]
+
+    predictions_data = []
+    for movie_id in EXAMPLE_MOVIE_IDS:
+        if movie_id in item_to_idx:
+            item_idx = item_to_idx[movie_id]
+            pred_rating = mf_model.predict(alice_idx, item_idx)
+
+            # Get actual rating if exists
+            actual = train_ratings.filter(
+                (pl.col("user_id") == alice_id) & (pl.col("movie_id") == movie_id)
+            )
+            actual_rating = actual['rating'][0] if len(actual) > 0 else None
+
+            movie_title = movies.filter(pl.col("movie_id") == movie_id)['title'][0]
+
+            predictions_data.append({
+                'movie_id': movie_id,
+                'title': movie_title,
+                'predicted_rating': pred_rating,
+                'actual_rating': actual_rating
+            })
+
+    predictions_df = pl.DataFrame(predictions_data).sort('predicted_rating', descending=True)
+
+    display(Markdown("**Matrix Factorization: Predicted Ratings for Alice on Example Movies**"))
+    display(predictions_df)
+
+    # Prepare data for visualization
+    plot_data = []
+    for row in predictions_df.to_dicts():
+        title_short = row['title'].split('(')[0].strip()
+
+        # Add predicted rating
+        plot_data.append({
+            'title': title_short,
+            'rating': row['predicted_rating'],
+            'type': 'Predicted'
+        })
+
+        # Add actual rating if exists
+        if row['actual_rating'] is not None:
+            plot_data.append({
+                'title': title_short,
+                'rating': row['actual_rating'],
+                'type': 'Actual'
+            })
+
+    plot_df = pd.DataFrame(plot_data)
+
+    # Create visualization with plotnine
+    (
+        ggplot(plot_df, aes(x='title', y='rating', fill='type')) +
+        geom_bar(stat='identity', position='dodge', alpha=0.8) +
+        scale_fill_manual(values={'Predicted': 'steelblue', 'Actual': 'coral'}) +
+        labs(
+            title='Matrix Factorization: Predicted vs Actual Ratings for Alice',
+            x='Movies',
+            y='Rating',
+            fill='Rating Type'
+        ) +
+        theme(figure_size=(12, 6), axis_text_x=element_text(rotation=45, hjust=1)) +
+        ylim(0, 5.5)
+    )
+```
+
+## Generate Recommendations for Alice
+
+```{python}
+#| label: mf-recommend-alice
+
+if alice_id in user_to_idx:
+    alice_idx = user_to_idx[alice_id]
+
+    # Get items Alice hasn't rated
+    alice_items = set(
+        item_to_idx[mid] for mid in
+        train_ratings.filter(pl.col("user_id") == alice_id)['movie_id'].to_list()
+    )
+
+    # Score all items
+    scores = []
+    for item_idx in range(len(item_to_idx)):
+        if item_idx not in alice_items:
+            score = mf_model.predict(alice_idx, item_idx)
+            scores.append((item_idx, score))
+
+    # Top-10
+    scores.sort(key=lambda x: x[1], reverse=True)
+    top_10 = scores[:10]
+
+    # Map back to movie IDs
+    idx_to_item = {idx: mid for mid, idx in item_to_idx.items()}
+    rec_movie_ids = [idx_to_item[idx] for idx, _ in top_10]
+
+    mf_recs_df = movies.filter(pl.col("movie_id").is_in(rec_movie_ids)).select(["title", "genres"])
+    mf_stats = f"""
+**Matrix Factorization Recommendations for Alice:**
+
+- Recommended movies: {len(mf_recs_df)}
+- Based on {mf_model.num_factors} latent factors
+- Excludes {len(alice_items)} movies Alice has already rated
+    """
+    display(Markdown(mf_stats))
+    display(mf_recs_df)
+```
+
+# EASE: Embarrassingly Shallow Autoencoders
+
+**Key Idea**: Learn item-item similarity matrix directly via closed-form solution!
+
+From Steck (2019): EASE is a linear model that's:
+- **Simple**: No neural networks, no iterations
+- **Strong**: Competitive with deep models
+- **Fast**: Closed-form solution
+
+$$
+\min_B \|X - XB\|_F^2 + \lambda \|B\|_F^2 \quad \text{s.t.} \quad \text{diag}(B) = 0
+$$
+
+## Create Binary Interaction Matrix
+
+```{python}
+#| label: create-interaction-matrix
+
+import scipy.sparse as sp
+
+# Binary interactions (rating ≥ 4.0)
+interactions = create_user_item_matrix(train_ratings, min_rating=4.0)
+
+interaction_stats = f"""
+**Binary Interaction Matrix:**
+
+- Total positive interactions (rating >= 4.0): {len(interactions):,}
+- Percentage of all ratings: {len(interactions) / len(train_ratings) * 100:.1f}%
+- Unique users with interactions: {interactions['user_id'].n_unique():,}
+- Unique items with interactions: {interactions['movie_id'].n_unique():,}
+"""
+display(Markdown(interaction_stats))
+
+display(Markdown("**BINARY INTERACTIONS (rating >= 4.0, first 10):**"))
+display(interactions.head(10))
+
+# Build sparse matrix
+rows = [user_to_idx[uid] for uid in interactions['user_id'].to_list() if uid in user_to_idx]
+cols = [item_to_idx[mid] for mid in interactions['movie_id'].to_list() if mid in item_to_idx]
+data = [1] * len(rows)
+
+X = sp.csr_matrix(
+    (data, (rows, cols)),
+    shape=(len(user_to_idx), len(item_to_idx))
+)
+
+matrix_info = f"""
+**Interaction Matrix:**
+
+- **Shape:** {X.shape}
+- **Density:** {X.nnz / (X.shape[0] * X.shape[1]) * 100:.4f}%
+"""
+display(Markdown(matrix_info))
+```
+
+## Train EASE
+
+```{python}
+#| label: train-ease
+
+ease_model = EASE(reg=100.0)
+ease_model.fit(X)
+
+ease_train_info = f"""
+**EASE Model Training Complete!**
+- **Item-item similarity matrix shape:** {ease_model.B.shape}
+"""
+display(Markdown(ease_train_info))
+```
+
+## EASE Recommendations for Alice
+
+```{python}
+#| label: ease-recommend-alice
+
+if alice_id in user_to_idx:
+    alice_idx = user_to_idx[alice_id]
+    idx_to_item = {idx: mid for mid, idx in item_to_idx.items()}
+
+    ease_recs = ease_model.recommend_for_user(alice_idx, X, k=10)
+    ease_movie_ids = [idx_to_item[idx] for idx in ease_recs]
+
+    ease_recs_df = movies.filter(pl.col("movie_id").is_in(ease_movie_ids)).select(["title", "genres"])
+    ease_stats = f"""
+**EASE Recommendations for Alice:**
+
+- Recommended movies: {len(ease_recs_df)}
+- Based on item-item similarity learned via closed-form solution
+- Regularization parameter λ: {ease_model.reg}
+    """
+    display(Markdown(ease_stats))
+    display(ease_recs_df)
+```
+
+## EASE Item Similarity for Example Movies
+
+```{python}
+#| label: ease-item-similarity
+
+# Get similarity scores between example movies
+example_indices_ease = [item_to_idx[mid] for mid in EXAMPLE_MOVIE_IDS if mid in item_to_idx]
+
+# Get movie titles
+example_titles = []
+for idx in example_indices_ease:
+    movie_id = [mid for mid, midx in item_to_idx.items() if midx == idx][0]
+    title = movies.filter(pl.col("movie_id") == movie_id)['title'][0].split('(')[0].strip()
+    example_titles.append(title)
+
+# Create data for heatmap
+heatmap_data = []
+for i, idx_i in enumerate(example_indices_ease):
+    for j, idx_j in enumerate(example_indices_ease):
+        similarity = ease_model.B[idx_i, idx_j] if i != j else 0
+        heatmap_data.append({
+            'movie_i': example_titles[i],
+            'movie_j': example_titles[j],
+            'similarity': similarity,
+            'label': f'{similarity:.3f}' if i != j else ''
+        })
+
+heatmap_df = pd.DataFrame(heatmap_data)
+
+# Create heatmap with plotnine
+(
+    ggplot(heatmap_df, aes(x='movie_j', y='movie_i', fill='similarity')) +
+    geom_tile(color='white', size=0.5) +
+    geom_text(aes(label='label'), size=8, color='black') +
+    scale_fill_gradient2(low='red', mid='yellow', high='green',
+                         midpoint=0, limits=(-0.5, 0.5)) +
+    labs(
+        title='EASE: Item-Item Similarity Matrix for Example Movies',
+        x='',
+        y='',
+        fill='Similarity\nScore'
+    ) +
+    theme(
+        figure_size=(12, 10),
+        axis_text_x=element_text(rotation=45, hjust=1),
+        panel_grid=element_blank()
+    )
+)
+```
+
+## EASE Scores for Example Movies
+
+```{python}
+#| label: ease-scores-alice
+
+# Get EASE scores for Alice on example movies
+if alice_id in user_to_idx:
+    alice_idx = user_to_idx[alice_id]
+
+    # Get Alice's interaction vector
+    alice_interactions = X[alice_idx].toarray().flatten()
+
+    # Compute scores for all items
+    scores = alice_interactions @ ease_model.B
+
+    ease_predictions_data = []
+    for movie_id in EXAMPLE_MOVIE_IDS:
+        if movie_id in item_to_idx:
+            item_idx = item_to_idx[movie_id]
+            score = scores[item_idx]
+
+            # Check if Alice has interacted with this movie
+            has_interaction = alice_interactions[item_idx] > 0
+
+            movie_title = movies.filter(pl.col("movie_id") == movie_id)['title'][0]
+
+            ease_predictions_data.append({
+                'movie_id': movie_id,
+                'title': movie_title,
+                'ease_score': score,
+                'has_interaction': 'Yes' if has_interaction else 'No'
+            })
+
+    ease_pred_df = pl.DataFrame(ease_predictions_data).sort('ease_score', descending=True)
+
+    display(Markdown("**EASE: Scores for Alice on Example Movies**"))
+    display(ease_pred_df)
+
+    # Prepare data for visualization
+    ease_plot_df = ease_pred_df.to_pandas()
+    ease_plot_df['title_short'] = ease_plot_df['title'].apply(lambda x: x.split('(')[0].strip())
+
+    # Create visualization with plotnine
+    (
+        ggplot(ease_plot_df, aes(x='title_short', y='ease_score', fill='has_interaction')) +
+        geom_bar(stat='identity', alpha=0.8) +
+        scale_fill_manual(
+            values={'Yes': 'coral', 'No': 'steelblue'},
+            labels={'Yes': 'Already Interacted', 'No': 'Not Interacted'}
+        ) +
+        labs(
+            title='EASE: Recommendation Scores for Alice on Example Movies',
+            x='Movies',
+            y='EASE Score',
+            fill='Interaction Status'
+        ) +
+        theme(figure_size=(12, 6), axis_text_x=element_text(rotation=45, hjust=1))
+    )
+```
+
+## Compare MF vs EASE on Example Movies
+
+Let's compare how both models score our example movies for Alice.
+
+```{python}
+#| label: compare-mf-ease
+
+if alice_id in user_to_idx:
+    alice_idx = user_to_idx[alice_id]
+
+    # Get scores from both models
+    comparison_data = []
+    for movie_id in EXAMPLE_MOVIE_IDS:
+        if movie_id in item_to_idx:
+            item_idx = item_to_idx[movie_id]
+
+            # MF prediction
+            mf_score = mf_model.predict(alice_idx, item_idx)
+
+            # EASE score
+            alice_interactions = X[alice_idx].toarray().flatten()
+            ease_scores_all = alice_interactions @ ease_model.B
+            ease_score = ease_scores_all[item_idx]
+
+            # Actual rating
+            actual = train_ratings.filter(
+                (pl.col("user_id") == alice_id) & (pl.col("movie_id") == movie_id)
+            )
+            actual_rating = actual['rating'][0] if len(actual) > 0 else None
+
+            movie_title = movies.filter(pl.col("movie_id") == movie_id)['title'][0]
+
+            comparison_data.append({
+                'title': movie_title,
+                'mf_score': mf_score,
+                'ease_score': ease_score,
+                'actual_rating': actual_rating
+            })
+
+    comparison_df = pl.DataFrame(comparison_data)
+
+    display(Markdown("**Model Comparison: MF vs EASE on Example Movies**"))
+    display(comparison_df)
+
+    # Prepare data for Plot 1: MF vs EASE (normalized)
+    comparison_plot_df = comparison_df.to_pandas()
+    comparison_plot_df['title_short'] = comparison_plot_df['title'].apply(lambda x: x.split('(')[0].strip())
+
+    # Normalize EASE scores to 0-5 scale for comparison
+    ease_scores = comparison_plot_df['ease_score']
+    if ease_scores.max() > ease_scores.min():
+        comparison_plot_df['ease_normalized'] = ((ease_scores - ease_scores.min()) /
+                                                  (ease_scores.max() - ease_scores.min()) * 5)
+    else:
+        comparison_plot_df['ease_normalized'] = 2.5
+
+    # Reshape data for grouped bar chart
+    plot1_data = []
+    for _, row in comparison_plot_df.iterrows():
+        plot1_data.append({
+            'title': row['title_short'],
+            'score': row['mf_score'],
+            'model': 'MF'
+        })
+        plot1_data.append({
+            'title': row['title_short'],
+            'score': row['ease_normalized'],
+            'model': 'EASE (normalized)'
+        })
+
+    plot1_df = pd.DataFrame(plot1_data)
+
+    # Create Plot 1: MF vs EASE
+    display(
+        ggplot(plot1_df, aes(x='title', y='score', fill='model')) +
+        geom_bar(stat='identity', position='dodge', alpha=0.8) +
+        scale_fill_manual(values={'MF': 'steelblue', 'EASE (normalized)': 'green'}) +
+        labs(
+            title='Matrix Factorization vs EASE Scores',
+            x='Movies',
+            y='Score',
+            fill='Model'
+        ) +
+        theme(figure_size=(12, 6), axis_text_x=element_text(rotation=45, hjust=1)) +
+        ylim(0, 5.5)
+    )
+
+    # Prepare data for Plot 2: MF vs Actual Ratings (scatter)
+    scatter_data = comparison_plot_df[comparison_plot_df['actual_rating'].notna()].copy()
+
+    # Create Plot 2: MF Predictions vs Actual
+    (
+        ggplot(scatter_data, aes(x='mf_score', y='actual_rating', label='title_short')) +
+        geom_point(size=4, alpha=0.7, color='steelblue', stroke=1) +
+        geom_abline(intercept=0, slope=1, linetype='dashed', color='red', alpha=0.5, size=1) +
+        geom_text(size=8, nudge_x=0.1, nudge_y=0.1) +
+        labs(
+            title='MF Predictions vs Actual Ratings',
+            x='MF Predicted Rating',
+            y='Actual Rating'
+        ) +
+        theme(figure_size=(10, 8)) +
+        xlim(0, 5.5) +
+        ylim(0, 5.5) +
+        coord_equal()
+    )
+```
+
+## Evaluate on Test Set
+
+Let's evaluate both models on a held-out test set.
+
+```{python}
+#| label: evaluate-test-set
+
+# Create test set: sample 20% of users
+test_users = np.random.choice(list(user_to_idx.keys()), size=int(0.2 * len(user_to_idx)), replace=False)
+
+# For each test user, hold out their last 5 interactions
+test_ground_truth = {}
+predictions_mf = {}
+predictions_ease = {}
+
+for uid in test_users[:100]:  # Sample 100 for speed
+    if uid not in user_to_idx:
+        continue
+
+    user_idx = user_to_idx[uid]
+    user_ratings = train_ratings.filter(pl.col("user_id") == uid).sort("timestamp")
+
+    if len(user_ratings) < 10:
+        continue
+
+    # Last 5 as test
+    test_items = user_ratings.tail(5)['movie_id'].to_list()
+    test_ground_truth[uid] = set(item_to_idx[mid] for mid in test_items if mid in item_to_idx)
+
+    # MF predictions
+    mf_scores = []
+    for item_idx in range(len(item_to_idx)):
+        mf_scores.append((item_idx, mf_model.predict(user_idx, item_idx)))
+    mf_scores.sort(key=lambda x: x[1], reverse=True)
+    predictions_mf[uid] = [idx for idx, _ in mf_scores[:20]]
+
+    # EASE predictions
+    ease_top = ease_model.recommend_for_user(user_idx, X, k=20)
+    predictions_ease[uid] = ease_top
+
+# Evaluate
+mf_metrics = evaluate_ranking(predictions_mf, test_ground_truth, k_values=[10, 20])
+ease_metrics = evaluate_ranking(predictions_ease, test_ground_truth, k_values=[10, 20])
+
+eval_results = f"""
+**Evaluation Results (Test Set):**
+
+**Matrix Factorization:**
+
+- Recall@10: {mf_metrics['recall@10']:.4f}
+- Recall@20: {mf_metrics['recall@20']:.4f}
+- NDCG@10: {mf_metrics['ndcg@10']:.4f}
+- NDCG@20: {mf_metrics['ndcg@20']:.4f}
+
+**EASE:**
+
+- Recall@10: {ease_metrics['recall@10']:.4f}
+- Recall@20: {ease_metrics['recall@20']:.4f}
+- NDCG@10: {ease_metrics['ndcg@10']:.4f}
+- NDCG@20: {ease_metrics['ndcg@20']:.4f}
+"""
+display(Markdown(eval_results))
+```
+
+# Summary and Key Takeaways
+
+We've explored two foundational collaborative filtering approaches:
+
+## Matrix Factorization
+
+**Strengths:**
+
+- Learns meaningful latent factors for users and items
+- Can predict ratings (not just rankings)
+- Embeddings capture semantic similarity
+- Works well with explicit ratings
+
+**Limitations:**
+
+- Requires iterative optimization (slower)
+- Can overfit with wrong hyperparameters
+- Cold start: needs ratings history
+
+## EASE
+
+**Strengths:**
+
+- Extremely simple: closed-form solution!
+- Fast training and inference
+- Competitive performance with deep models
+- Item-item similarities are interpretable
+
+**Limitations:**
+
+- Memory-intensive (stores full similarity matrix)
+- Works with binary interactions (not ratings)
+- Less flexible than neural approaches
+
+## When to Use Each?
+
+- **MF**: When you need rating predictions, have explicit feedback, want interpretable embeddings
+- **EASE**: When you need fast, simple baseline, have implicit feedback, value interpretability
+
+## Next Steps
+
+In the remaining notebooks, we'll explore:
+- **Part III (SASRec)**: Sequential recommendation with self-attention
+- **Part IV (LLMs)**: Zero-shot and few-shot recommendations with language models
+
+These modern approaches address limitations of classical CF (cold start, sequential patterns, semantic understanding).

@@ -161,6 +161,19 @@ def prepare_data(dataset: str, input_dir: Path, output_dir: Path):
             # Convert column names from camelCase to snake_case
             df = df.rename({col: camel_to_snake(col) for col in df.columns})
 
+            # Apply file-specific transformations
+            if file_name == "movies" and "genres" in df.columns:
+                # Convert genres from "Action|Adventure|Sci-Fi" to ["Action", "Adventure", "Sci-Fi"]
+                df = df.with_columns(pl.col("genres").str.split("|").alias("genres"))
+                click.echo("    → Converted genres to list[str]")
+
+            if file_name in ["ratings", "tags"] and "timestamp" in df.columns:
+                # Convert Unix timestamp to datetime
+                df = df.with_columns(
+                    pl.from_epoch(pl.col("timestamp"), time_unit="s").alias("timestamp")
+                )
+                click.echo("    → Converted timestamp to datetime")
+
             # Show basic stats
             n_rows = df.height
             n_cols = len(df.columns)
@@ -176,7 +189,12 @@ def prepare_data(dataset: str, input_dir: Path, output_dir: Path):
             click.echo(f"    ✗ Error processing {file_name}: {e}", err=True)
             raise
 
-    click.echo(f"\n✓ Successfully processed {total_processed} files for {dataset} dataset")
+    # Write which_dataset file to track which dataset was prepared
+    which_dataset_path = output_dir / "which_dataset"
+    which_dataset_path.write_text(dataset)
+    click.echo(f"\n✓ Created {which_dataset_path} with value: {dataset}")
+
+    click.echo(f"✓ Successfully processed {total_processed} files for {dataset} dataset")
 
 
 if __name__ == "__main__":
