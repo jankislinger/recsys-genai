@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Part III.b: Conversational Recommendation with Keyphrases – RecSys GenAI Workshop</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../assets/favicon.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-5316630253f2b0b36f77cd4e7e737bf8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">RecSys GenAI Workshop</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-slides" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Slides</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-slides">    
+        <li>
+    <a class="dropdown-item" href="../slides/00_introduction.html">
+ <span class="dropdown-text">Introduction</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/01a_foundations.html">
+ <span class="dropdown-text">I.a: Foundations</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/01b_ease.html">
+ <span class="dropdown-text">I.b: EASE</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/02a_transformer_architecture.html">
+ <span class="dropdown-text">II.a: Transformer Architecture</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/02b_transformer_recommendation.html">
+ <span class="dropdown-text">II.b: Transformers &amp; SASRec</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/04a_reranking.html">
+ <span class="dropdown-text">IV.a: Reranking &amp; Slate Optimization</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/04b_generative_pages.html">
+ <span class="dropdown-text">IV.b: Generative Pages</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/07_wrapup.html">
+ <span class="dropdown-text">Wrap-up</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-notebooks" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Notebooks</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-notebooks">    
+        <li>
+    <a class="dropdown-item" href="../notebooks/01a_movielens.html">
+ <span class="dropdown-text">I.a: MovieLens Dataset</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/01b_ease.html">
+ <span class="dropdown-text">I.b: EASE</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/02_sasrec.html">
+ <span class="dropdown-text">II: SASRec</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/03a_llm_recommendation.html">
+ <span class="dropdown-text">III.a: LLMs for Recommendation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/03b_conversational_recommendation.html">
+ <span class="dropdown-text">III.b: Conversational Recommendation</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/04a_slate_generation.html">
+ <span class="dropdown-text">IV.a: Slate Generation</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../references.html"> 
+<span class="menu-text">References</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jankislinger/recsys-genai"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#prepare-movie-sample" id="toc-prepare-movie-sample" class="nav-link" data-scroll-target="#prepare-movie-sample">Prepare Movie Sample</a></li>
+  <li><a href="#generate-keyphrases-for-each-movie" id="toc-generate-keyphrases-for-each-movie" class="nav-link" data-scroll-target="#generate-keyphrases-for-each-movie">Generate Keyphrases for Each Movie</a></li>
+  <li><a href="#build-keyphrase-vector-store" id="toc-build-keyphrase-vector-store" class="nav-link" data-scroll-target="#build-keyphrase-vector-store">Build Keyphrase Vector Store</a></li>
+  <li><a href="#user-query-keyphrase-generation" id="toc-user-query-keyphrase-generation" class="nav-link" data-scroll-target="#user-query-keyphrase-generation">User Query → Keyphrase Generation</a></li>
+  <li><a href="#similarity-search-movie-aggregation" id="toc-similarity-search-movie-aggregation" class="nav-link" data-scroll-target="#similarity-search-movie-aggregation">Similarity Search &amp; Movie Aggregation</a></li>
+  <li><a href="#llm-ranking" id="toc-llm-ranking" class="nav-link" data-scroll-target="#llm-ranking">LLM Ranking</a></li>
+  <li><a href="#display-with-posters" id="toc-display-with-posters" class="nav-link" data-scroll-target="#display-with-posters">Display with Posters</a></li>
+  <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Part III.b: Conversational Recommendation with Keyphrases</h1>
+<p class="subtitle lead">Keyphrase-Based Semantic Search and LLM Ranking</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>This notebook demonstrates an advanced conversational recommendation pipeline using <strong>keyphrases</strong> as semantic intermediaries. The system follows a <strong>retrieval → ranking</strong> architecture: first, we use fast vector similarity search to retrieve candidate items, then we apply an LLM to re-rank and select the best matches.</p>
+<p><strong>Note:</strong> This is a <strong>single-turn query demo</strong> that processes one user query and returns immediate recommendations. It does not implement multi-turn conversational interaction where the system asks follow-up questions or refines preferences over multiple exchanges.</p>
+<p><strong>Pipeline Overview:</strong></p>
+<ol type="1">
+<li>Generate keyphrases for each movie using LLM</li>
+<li>Embed all keyphrases and store in vector database</li>
+<li>Convert user queries → keyphrases describing desired movies</li>
+<li>Retrieve similar keyphrases → aggregate to candidate movies</li>
+<li>Use LLM to rank candidates based on user query</li>
+<li>Display recommendations with posters</li>
+</ol>
+<p><strong>Why Keyphrases?</strong></p>
+<ul>
+<li><strong>Richer Semantics</strong>: Capture multiple aspects (mood, themes, style, audience)</li>
+<li><strong>Better Retrieval</strong>: More query-keyphrase matches than query-movie matches</li>
+<li><strong>Interpretability</strong>: Understand <em>why</em> a movie was recommended</li>
+<li><strong>Flexibility</strong>: Different keyphrases match different user needs</li>
+</ul>
+<p><strong>Related Work:</strong></p>
+<p>This approach combines ideas from conversational recommendation, multi-vector retrieval, and retrieval-augmented generation:</p>
+<ul>
+<li><strong>Retrieval-Augmented Generation (RAG)</strong>: <span class="citation" data-cites="lewis2020retrieval">Lewis et al. (<a href="#ref-lewis2020retrieval" role="doc-biblioref">2020</a>)</span> introduced RAG for knowledge-intensive NLP tasks, combining parametric (LLM) and non-parametric (retrieval) memory—our pipeline applies this retrieval→generation pattern to recommendations</li>
+<li><strong>Conversational RecSys</strong>: <span class="citation" data-cites="zhou2020survey">Zhou et al. (<a href="#ref-zhou2020survey" role="doc-biblioref">2020</a>)</span> surveys conversational recommender systems that use natural language to understand user preferences</li>
+<li><strong>Multi-vector Retrieval</strong>: <span class="citation" data-cites="khattab2020colbert">Khattab &amp; Zaharia (<a href="#ref-khattab2020colbert" role="doc-biblioref">2020</a>)</span> introduced ColBERT, using multiple contextualized embeddings per document for late interaction—our keyphrase approach applies similar principles with multiple semantic representations per item</li>
+</ul>
+<div id="imports" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> itertools</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> Counter, defaultdict</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> Markdown, display</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotnine <span class="im">import</span> <span class="op">*</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> Field</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic_settings <span class="im">import</span> BaseSettings, SettingsConfigDict</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics.pairwise <span class="im">import</span> cosine_similarity</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.data_utils <span class="im">import</span> load_movielens</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.llm_utils <span class="im">import</span> (</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    check_ollama_available,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    ollama_embed,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    ollama_generate,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    ollama_generate_json,</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    retry,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.notebook_utils <span class="im">import</span> (</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    ollama_model_link,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    show_prompt,</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    show_response,</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    tmdb_images,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="setup" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>theme_set(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    theme_minimal()</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> theme(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        plot_title<span class="op">=</span>element_text(weight<span class="op">=</span><span class="st">"bold"</span>, size<span class="op">=</span><span class="dv">14</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        axis_title<span class="op">=</span>element_text(size<span class="op">=</span><span class="dv">12</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        figure_size<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>pl.Config(</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    fmt_str_lengths<span class="op">=</span><span class="dv">50</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    tbl_rows<span class="op">=</span><span class="dv">20</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ConversationalRecSettings(BaseSettings):</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    model_config <span class="op">=</span> SettingsConfigDict(env_prefix<span class="op">=</span><span class="st">"CONV_REC_"</span>)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Model selection</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    llm_model: <span class="bu">str</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="st">"ministral-3:3b"</span>, description<span class="op">=</span><span class="st">"LLM model for generation"</span>)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    embed_model: <span class="bu">str</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="st">"nomic-embed-text-v2-moe"</span>, description<span class="op">=</span><span class="st">"Embedding model"</span>)</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Recommendations configuration</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    num_most_popular: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">500</span>, description<span class="op">=</span><span class="st">"Top N most-rated movies to sample from"</span>)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    num_sampled: <span class="bu">int</span> <span class="op">=</span> Field(</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>        default<span class="op">=</span><span class="dv">100</span>, description<span class="op">=</span><span class="st">"Number of movies to sample for keyphrase generation"</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    num_retrieved: <span class="bu">int</span> <span class="op">=</span> Field(</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        default<span class="op">=</span><span class="dv">10</span>, description<span class="op">=</span><span class="st">"Number of final movies to retrieve and rank"</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>settings <span class="op">=</span> ConversationalRecSettings()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="cell-load-data" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>movies, ratings, tags, links <span class="op">=</span> load_movielens(<span class="st">"../data"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>posters <span class="op">=</span> pl.read_parquet(<span class="st">"../data/shared/posters.parquet"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"""</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ss">**Configuration:**</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="ss">**Models:**</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- Generative: </span><span class="sc">{</span>ollama_model_link(settings.llm_model)<span class="sc">}</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- Embedding: </span><span class="sc">{</span>ollama_model_link(settings.embed_model)<span class="sc">}</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="ss">**Sampling:**</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- Most popular movies considered: </span><span class="sc">{</span>settings<span class="sc">.</span>num_most_popular<span class="sc">}</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- Movies sampled for keyphrases: </span><span class="sc">{</span>settings<span class="sc">.</span>num_sampled<span class="sc">}</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- Final retrieved movies: </span><span class="sc">{</span>settings<span class="sc">.</span>num_retrieved<span class="sc">}</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="load-data" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Configuration:</strong></p>
+<p><strong>Models:</strong></p>
+<ul>
+<li>Generative: <a href="https://ollama.com/library/ministral-3">ministral-3:3b 🔗</a></li>
+<li>Embedding: <a href="https://ollama.com/library/nomic-embed-text-v2-moe">nomic-embed-text-v2-moe 🔗</a></li>
+</ul>
+<p><strong>Sampling:</strong></p>
+<ul>
+<li>Most popular movies considered: 500</li>
+<li>Movies sampled for keyphrases: 100</li>
+<li>Final retrieved movies: 10</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="prepare-movie-sample" class="level1">
+<h1>Prepare Movie Sample</h1>
+<p>We’ll select a sample of movies for keyphrase generation:</p>
+<div id="select-movie-sample" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get most-rated movies to ensure we have familiar content</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>most_rated_movies <span class="op">=</span> (</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    ratings.group_by(<span class="st">"movie_id"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">len</span>(<span class="st">"num_ratings"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    .top_k(settings.num_most_popular, by<span class="op">=</span><span class="st">"num_ratings"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>sample_movies <span class="op">=</span> movies.join(most_rated_movies, on<span class="op">=</span><span class="st">"movie_id"</span>, how<span class="op">=</span><span class="st">"semi"</span>).sample(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    n<span class="op">=</span>settings.num_sampled, seed<span class="op">=</span><span class="dv">42</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Selected </span><span class="sc">{</span><span class="bu">len</span>(sample_movies)<span class="sc">}</span><span class="ss"> movies** for keyphrase generation"</span>))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>sample_movies.select(<span class="st">"title"</span>, <span class="st">"genres"</span>).head(<span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="select-movie-sample-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Selected 100 movies</strong> for keyphrase generation</p>
+</div>
+<div id="select-movie-sample-2" class="cell-output cell-output-display" data-execution_count="4">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (10, 2)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">genres</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>list[str]</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"Wedding Crashers (2005)"</td>
+<td>["Comedy", "Romance"]</td>
+</tr>
+<tr class="even">
+<td>"Army of Darkness (1993)"</td>
+<td>["Action", "Adventure", … "Horror"]</td>
+</tr>
+<tr class="odd">
+<td>"Mad Max: Fury Road (2015)"</td>
+<td>["Action", "Adventure", … "Thriller"]</td>
+</tr>
+<tr class="even">
+<td>"Royal Tenenbaums, The (2001)"</td>
+<td>["Comedy", "Drama"]</td>
+</tr>
+<tr class="odd">
+<td>"Shaun of the Dead (2004)"</td>
+<td>["Comedy", "Horror"]</td>
+</tr>
+<tr class="even">
+<td>"RoboCop (1987)"</td>
+<td>["Action", "Crime", … "Thriller"]</td>
+</tr>
+<tr class="odd">
+<td>"Speed (1994)"</td>
+<td>["Action", "Romance", "Thriller"]</td>
+</tr>
+<tr class="even">
+<td>"Magnolia (1999)"</td>
+<td>["Drama"]</td>
+</tr>
+<tr class="odd">
+<td>"Dr. Strangelove or: How I Learned to Stop Worrying…</td>
+<td>["Comedy", "War"]</td>
+</tr>
+<tr class="even">
+<td>"Limitless (2011)"</td>
+<td>["Sci-Fi", "Thriller"]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="generate-keyphrases-for-each-movie" class="level1">
+<h1>Generate Keyphrases for Each Movie</h1>
+<p>We’ll use the LLM to generate descriptive keyphrases for each movie:</p>
+<div id="keyphrase-generation-function" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="at">@retry</span>(<span class="dv">3</span>, exceptions<span class="op">=</span>(<span class="pp">ValueError</span>, json.JSONDecodeError))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_movie_keyphrases(title, genres):</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Generate keyphrases describing a movie.</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Keyphrases capture: mood, themes, style, audience, plot elements, emotions, etc.</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns:</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">        dict with 'keyphrases' key containing list of strings</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    prompt <span class="op">=</span> <span class="ss">f"""</span><span class="op">\</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="ss">You are a film expert. Generate 10-15 short keyphrases (2-4 words each) that describe this movie.</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="ss">Title: </span><span class="sc">{</span>title<span class="sc">}</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="ss">Genres: </span><span class="sc">{</span><span class="st">", "</span><span class="sc">.</span>join(genres) <span class="cf">if</span> genres <span class="cf">else</span> <span class="st">"Unknown"</span><span class="sc">}</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="ss">Include keyphrases for:</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- Mood/Atmosphere (e.g., "uplifting", "dark comedy", "suspenseful")</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- Themes (e.g., "family bonds", "redemption", "coming-of-age")</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="ss">- Visual Style (e.g., "visually stunning", "gritty realism")</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="ss">- Target Audience (e.g., "family-friendly", "thriller fans")</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="ss">- Emotions (e.g., "heartwarming", "tense", "inspiring")</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="ss">- Plot Elements (e.g., "time travel", "heist", "love triangle")</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="ss">- Similar Movies/Genres (e.g., "like Inception", "sci-fi thriller")</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY valid JSON:</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="ch">{{</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="ss">  "keyphrases": ["phrase1", "phrase2", ..., "phrase8"]</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="ch">}}</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> ollama_generate_json(prompt, model<span class="op">=</span>settings.llm_model, temperature<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="st">"keyphrases"</span> <span class="kw">not</span> <span class="kw">in</span> result <span class="kw">or</span> <span class="kw">not</span> <span class="bu">isinstance</span>(result[<span class="st">"keyphrases"</span>], <span class="bu">list</span>):</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"Invalid keyphrase format"</span>)</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(result[<span class="st">"keyphrases"</span>]) <span class="op">&lt;</span> <span class="dv">8</span>:</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"Not enough keyphrases: </span><span class="sc">{</span><span class="bu">len</span>(result[<span class="st">'keyphrases'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Test with one movie</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>test_movie <span class="op">=</span> sample_movies.to_dicts()[<span class="dv">0</span>]</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>test_result <span class="op">=</span> generate_movie_keyphrases(test_movie[<span class="st">"title"</span>], test_movie[<span class="st">"genres"</span>])</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Test: </span><span class="sc">{</span>test_movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">**"</span>))</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>show_response(test_result)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="keyphrase-generation-function-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Test: Wedding Crashers (2005)</strong></p>
+</div>
+<div id="keyphrase-generation-function-2" class="cell-output cell-output-display cell-output-markdown" data-execution_count="5">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>{
+  "keyphrases": [
+    "satirical wedding chaos",
+    "rom-com slapstick",
+    "fake identity heist",
+    "love-struck comedic duo",
+    "lighthearted party antics",
+    "mischievous wedding invaders",
+    "playful social satire",
+    "fake engagement farce",
+    "rom-com heartwarming",
+    "dramatic comedy flop",
+    "fake identities misadventure",
+    "wedding disruption comedy",
+    "rom-com romance bloomers",
+    "fake couple deception",
+    "lighthearted social comedy"
+  ]
+}</code></pre>
+</div>
+</div>
+<div id="cell-batch-generate-keyphrases" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate keyphrases for all sampled movies</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>all_keyphrases <span class="op">=</span> []</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Generating keyphrases for </span><span class="sc">{</span><span class="bu">len</span>(sample_movies)<span class="sc">}</span><span class="ss"> movies..."</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, movie <span class="kw">in</span> <span class="bu">enumerate</span>(sample_movies.to_dicts()):</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  [</span><span class="sc">{</span>i <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">/</span><span class="sc">{</span><span class="bu">len</span>(sample_movies)<span class="sc">}</span><span class="ss">] </span><span class="sc">{</span>movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> generate_movie_keyphrases(movie[<span class="st">"title"</span>], movie[<span class="st">"genres"</span>])</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    all_keyphrases.append(result)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>keyphrases_df <span class="op">=</span> pl.DataFrame(all_keyphrases)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">✅ Keyphrase generation complete!"</span>)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine with movie data</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>enriched_movies <span class="op">=</span> pl.concat([sample_movies, keyphrases_df], how<span class="op">=</span><span class="st">"horizontal"</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Display stats</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>total_keyphrases <span class="op">=</span> <span class="bu">sum</span>(<span class="bu">len</span>(kp) <span class="cf">for</span> kp <span class="kw">in</span> enriched_movies[<span class="st">"keyphrases"</span>].to_list())</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>avg_keyphrases <span class="op">=</span> total_keyphrases <span class="op">/</span> <span class="bu">len</span>(enriched_movies)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"""</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="ss">**Keyphrase Statistics:**</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="ss">- Total movies: </span><span class="sc">{</span><span class="bu">len</span>(enriched_movies)<span class="sc">}</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="ss">- Total keyphrases: </span><span class="sc">{</span>total_keyphrases<span class="sc">:,}</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="ss">- Average keyphrases per movie: </span><span class="sc">{</span>avg_keyphrases<span class="sc">:.1f}</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span>)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Generating keyphrases for 100 movies...
+  [1/100] Wedding Crashers (2005)
+  [2/100] Army of Darkness (1993)
+  [3/100] Mad Max: Fury Road (2015)
+  [4/100] Royal Tenenbaums, The (2001)
+  [5/100] Shaun of the Dead (2004)
+  [6/100] RoboCop (1987)
+  [7/100] Speed (1994)
+  [8/100] Magnolia (1999)
+  [9/100] Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb (1964)
+  [10/100] Limitless (2011)
+  [11/100] Ghostbusters (a.k.a. Ghost Busters) (1984)
+  [12/100] Pirates of the Caribbean: At World's End (2007)
+  [13/100] Training Day (2001)
+  [14/100] Natural Born Killers (1994)
+  [15/100] Air Force One (1997)
+  [16/100] Arachnophobia (1990)
+  [17/100] Vertigo (1958)
+  [18/100] Dumb &amp; Dumber (Dumb and Dumber) (1994)
+  [19/100] Fight Club (1999)
+  [20/100] Back to the Future Part III (1990)
+  [21/100] Dances with Wolves (1990)
+  [22/100] There Will Be Blood (2007)
+  [23/100] O Brother, Where Art Thou? (2000)
+  [24/100] Star Wars: Episode I - The Phantom Menace (1999)
+  [25/100] V for Vendetta (2006)
+  [26/100] True Romance (1993)
+  [27/100] As Good as It Gets (1997)
+  [28/100] Looper (2012)
+  [29/100] Rocky Horror Picture Show, The (1975)
+  [30/100] Kung Fu Panda (2008)
+  [31/100] Addams Family Values (1993)
+  [32/100] Chocolat (2000)
+  [33/100] Catch Me If You Can (2002)
+  [34/100] Godfather: Part II, The (1974)
+  [35/100] Star Wars: Episode VII - The Force Awakens (2015)
+  [36/100] Lord of the Rings: The Two Towers, The (2002)
+  [37/100] Charlie and the Chocolate Factory (2005)
+  [38/100] Dark City (1998)
+  [39/100] Thomas Crown Affair, The (1999)
+  [40/100] Toy Story (1995)
+  [41/100] I Am Legend (2007)
+  [42/100] Godfather, The (1972)
+  [43/100] My Cousin Vinny (1992)
+  [44/100] High Fidelity (2000)
+  [45/100] Maverick (1994)
+  [46/100] Rocky (1976)
+  [47/100] Shrek (2001)
+  [48/100] Erin Brockovich (2000)
+  [49/100] 50 First Dates (2004)
+  [50/100] Goodfellas (1990)
+  [51/100] Love Actually (2003)
+  [52/100] 10 Things I Hate About You (1999)
+  [53/100] Edward Scissorhands (1990)
+  [54/100] Little Miss Sunshine (2006)
+  [55/100] Broken Arrow (1996)
+  [56/100] Willy Wonka &amp; the Chocolate Factory (1971)
+  [57/100] Matrix Revolutions, The (2003)
+  [58/100] Platoon (1986)
+  [59/100] Donnie Darko (2001)
+  [60/100] Robin Hood: Men in Tights (1993)
+  [61/100] Monsters, Inc. (2001)
+  [62/100] Gone Girl (2014)
+  [63/100] No Country for Old Men (2007)
+  [64/100] Edge of Tomorrow (2014)
+  [65/100] Whiplash (2014)
+  [66/100] Legally Blonde (2001)
+  [67/100] Requiem for a Dream (2000)
+  [68/100] Borat: Cultural Learnings of America for Make Benefit Glorious Nation of Kazakhstan (2006)
+  [69/100] Fantasia (1940)
+  [70/100] Hot Shots! Part Deux (1993)
+  [71/100] Silence of the Lambs, The (1991)
+  [72/100] Guardians of the Galaxy (2014)
+  [73/100] Watchmen (2009)
+  [74/100] 2001: A Space Odyssey (1968)
+  [75/100] Star Wars: Episode V - The Empire Strikes Back (1980)
+  [76/100] Romancing the Stone (1984)
+  [77/100] Nightmare Before Christmas, The (1993)
+  [78/100] Grosse Pointe Blank (1997)
+  [79/100] The Martian (2015)
+  [80/100] Chasing Amy (1997)
+  [81/100] Star Wars: Episode II - Attack of the Clones (2002)
+  [82/100] Seven Samurai (Shichinin no samurai) (1954)
+  [83/100] Aliens (1986)
+  [84/100] Mars Attacks! (1996)
+  [85/100] Aladdin (1992)
+  [86/100] Much Ado About Nothing (1993)
+  [87/100] Face/Off (1997)
+  [88/100] Armageddon (1998)
+  [89/100] Star Wars: Episode IV - A New Hope (1977)
+  [90/100] Ice Age (2002)
+  [91/100] Iron Man 2 (2010)
+  [92/100] Top Gun (1986)
+  [93/100] Heat (1995)
+  [94/100] Scarface (1983)
+  [95/100] Into the Wild (2007)
+  [96/100] Wayne's World (1992)
+  [97/100] Monty Python and the Holy Grail (1975)
+  [98/100] Quiz Show (1994)
+  [99/100] Raising Arizona (1987)
+  [100/100] Chinatown (1974)
+
+✅ Keyphrase generation complete!</code></pre>
+</div>
+<div id="batch-generate-keyphrases" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Keyphrase Statistics:</strong></p>
+<ul>
+<li>Total movies: 100</li>
+<li>Total keyphrases: 1,684</li>
+<li>Average keyphrases per movie: 16.8</li>
+</ul>
+</div>
+</div>
+<div id="display-keyphrase-examples" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show examples of generated keyphrases</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"### Example Keyphrases for 3 Movies</span><span class="ch">\n</span><span class="st">"</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> movie_dict <span class="kw">in</span> enriched_movies.head(<span class="dv">3</span>).to_dicts():</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    phrases <span class="op">=</span> movie_dict[<span class="st">"keyphrases"</span>][:<span class="dv">10</span>]  <span class="co"># Show first 10</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    display(Markdown(<span class="ss">f"**</span><span class="sc">{</span>movie_dict[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">**  </span><span class="ch">\n</span><span class="sc">{</span><span class="st">', '</span><span class="sc">.</span>join(phrases)<span class="sc">}</span><span class="ss">, ...</span><span class="ch">\n</span><span class="ss">"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-keyphrase-examples-1" class="cell-output cell-output-display cell-output-markdown">
+<section id="example-keyphrases-for-3-movies" class="level3">
+<h3 class="anchored" data-anchor-id="example-keyphrases-for-3-movies">Example Keyphrases for 3 Movies</h3>
+</section>
+</div>
+<div id="display-keyphrase-examples-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Wedding Crashers (2005)</strong><br>
+satirical wedding chaos, lighthearted rom-com comedy, fake identities &amp; disguises, love triangles &amp; rival suitors, charming small-town vibes, mockumentary-style humor, fake marriage schemes, wedding crashers’ antics, romantic misadventures, playful social satire, …</p>
+</div>
+<div id="display-keyphrase-examples-3" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Army of Darkness (1993)</strong><br>
+Dark comedy horror, Samurai zombie action, Gothic medieval fantasy, Zombie apocalypse parody, Time-travel satire, Bloodshed slapstick, Whimsical chaos adventure, Zombies as historical figures, Humor through violence, Low-budget campy fun, …</p>
+</div>
+<div id="display-keyphrase-examples-4" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Mad Max: Fury Road (2015)</strong><br>
+post-apocalyptic chaos, high-speed action chase, minimal dialogue tension, visually dynamic cinematography, desert wasteland grit, non-linear narrative intensity, dystopian survival struggle, iconic car chase sequences, post-credits thriller, epic post-apocalyptic spectacle, …</p>
+</div>
+</div>
+</section>
+<section id="build-keyphrase-vector-store" class="level1">
+<h1>Build Keyphrase Vector Store</h1>
+<p>Now we’ll embed all keyphrases and create a searchable index:</p>
+<div id="build-keyphrase-index" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a flat list of all keyphrases with movie associations</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>keyphrase_index <span class="op">=</span> []</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> movie_dict <span class="kw">in</span> enriched_movies.to_dicts():</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    movie_id <span class="op">=</span> movie_dict[<span class="st">"movie_id"</span>]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    title <span class="op">=</span> movie_dict[<span class="st">"title"</span>]</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> phrase <span class="kw">in</span> movie_dict[<span class="st">"keyphrases"</span>]:</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>        keyphrase_index.append({<span class="st">"movie_id"</span>: movie_id, <span class="st">"title"</span>: title, <span class="st">"keyphrase"</span>: phrase})</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>keyphrase_df <span class="op">=</span> pl.DataFrame(keyphrase_index)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Created keyphrase index with </span><span class="sc">{</span><span class="bu">len</span>(keyphrase_df)<span class="sc">:,}</span><span class="ss"> entries**"</span>))</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>keyphrase_df.head(<span class="dv">20</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="build-keyphrase-index-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Created keyphrase index with 1,684 entries</strong></p>
+</div>
+<div id="build-keyphrase-index-2" class="cell-output cell-output-display" data-execution_count="8">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (20, 3)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">movie_id</th>
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">keyphrase</th>
+</tr>
+<tr class="even">
+<td>i64</td>
+<td>str</td>
+<td>str</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"satirical wedding chaos"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"lighthearted rom-com comedy"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"fake identities &amp; disguises"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"love triangles &amp; rival suitors"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"charming small-town vibes"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"mockumentary-style humor"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"fake marriage schemes"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"wedding crashers’ antics"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"romantic misadventures"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"playful social satire"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"fake celebrity impersonations"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"cozy yet chaotic atmosphere"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"romantic comedy tropes"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"fake engagement &amp; deception"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"wedding crashers’ redemption arc"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"rom-com with heart"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"blended love &amp; humor"</td>
+</tr>
+<tr class="even">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"fake family dynamics"</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>"lighthearted escapism"</td>
+</tr>
+<tr class="even">
+<td>1215</td>
+<td>"Army of Darkness (1993)"</td>
+<td>"Dark comedy horror"</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="embed-all-keyphrases" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Embed all keyphrases in batches</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Embedding keyphrases..."</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>all_keyphrase_texts <span class="op">=</span> keyphrase_df[<span class="st">"keyphrase"</span>].to_list()</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">50</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>keyphrase_embeddings <span class="op">=</span> []</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, batch <span class="kw">in</span> <span class="bu">enumerate</span>(itertools.batched(all_keyphrase_texts, batch_size)):</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i <span class="op">%</span> <span class="dv">10</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Batch </span><span class="sc">{</span>i <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">/</span><span class="sc">{</span><span class="bu">len</span>(all_keyphrase_texts) <span class="op">//</span> batch_size <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    batch_embeddings <span class="op">=</span> ollama_embed(<span class="bu">list</span>(batch), model<span class="op">=</span>settings.embed_model)</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    keyphrase_embeddings.extend(batch_embeddings)</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>keyphrase_matrix <span class="op">=</span> np.array(keyphrase_embeddings)</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Embedding complete!"</span>)</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"   Shape: </span><span class="sc">{</span>keyphrase_matrix<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Embedding keyphrases...
+  Batch 1/34
+  Batch 11/34
+  Batch 21/34
+  Batch 31/34
+
+✅ Embedding complete!
+   Shape: (1684, 768)</code></pre>
+</div>
+</div>
+</section>
+<section id="user-query-keyphrase-generation" class="level1">
+<h1>User Query → Keyphrase Generation</h1>
+<p>Convert natural language queries into descriptive keyphrases:</p>
+<div id="cell-query-keyphrase-function" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">@retry</span>(<span class="dv">3</span>, exceptions<span class="op">=</span>(<span class="pp">ValueError</span>, json.JSONDecodeError))</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_query_keyphrases(query):</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Convert user query into keyphrases describing desired movie.</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Args:</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">        query: Natural language description of what user wants</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns:</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="co">        dict with 'keyphrases' key containing list of strings</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    prompt <span class="op">=</span> <span class="ss">f"""</span><span class="op">\</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="ss">You are a movie recommendation expert. A user describes what they want to watch.</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="ss">Generate 3-5 short keyphrases (1-4 words each) that describe the type of movie they're looking for.</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="ss">User Query: "</span><span class="sc">{</span>query<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="ss">Consider their mood, preferences, constraints, and desires.</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="ss">Include keyphrases for mood, themes, style, audience, emotions, and plot elements.</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY valid JSON:</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="ch">{{</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="ss">  "keyphrases": ["phrase1", "phrase2", ..., "phrase7"]</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="ch">}}</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> ollama_generate_json(prompt, model<span class="op">=</span>settings.llm_model, temperature<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="st">"keyphrases"</span> <span class="kw">not</span> <span class="kw">in</span> result <span class="kw">or</span> <span class="kw">not</span> <span class="bu">isinstance</span>(result[<span class="st">"keyphrases"</span>], <span class="bu">list</span>):</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"Invalid keyphrase format"</span>)</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(result[<span class="st">"keyphrases"</span>]) <span class="op">&lt;</span> <span class="dv">2</span>:</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"Not enough keyphrases: </span><span class="sc">{</span><span class="bu">len</span>(result[<span class="st">'keyphrases'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Test with example query</span></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>user_query <span class="op">=</span> <span class="st">"I'm tired after a long day. Want something calm, uplifting, maybe a bit nostalgic. No intense action or horror."</span></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a><span class="co"># user_query = "Looking for something funny and lighthearted for a date night. Nothing too long or serious."</span></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>query_result <span class="op">=</span> generate_query_keyphrases(user_query)</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>query_phrases <span class="op">=</span> query_result[<span class="st">"keyphrases"</span>]</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"""</span><span class="op">\</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a><span class="ss">**User Query:**</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a><span class="ss">_</span><span class="sc">{</span>user_query<span class="sc">}</span><span class="ss">_</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="ss">**Query keyphrases:**</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a><span class="sc">{</span><span class="st">", "</span><span class="sc">.</span>join(query_phrases)<span class="sc">}</span></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span>)</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="query-keyphrase-function" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>User Query:</strong> <em>I’m tired after a long day. Want something calm, uplifting, maybe a bit nostalgic. No intense action or horror.</em></p>
+<p><strong>Query keyphrases:</strong> cozy small-town vibes, emotional uplift, nostalgic coming-of-age, gentle drama with heart, lighthearted family warmth, soft visual storytelling, wholesome redemption arc</p>
+</div>
+</div>
+</section>
+<section id="similarity-search-movie-aggregation" class="level1">
+<h1>Similarity Search &amp; Movie Aggregation</h1>
+<p>Now embed the query keyphrases to enable similarity comparison:</p>
+<div id="embed-query-keyphrases" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>query_embeddings <span class="op">=</span> ollama_embed(query_phrases, model<span class="op">=</span>settings.embed_model)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>query_matrix <span class="op">=</span> np.array(query_embeddings)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Query embedding matrix shape: </span><span class="sc">{</span>query_matrix<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - </span><span class="sc">{</span><span class="bu">len</span>(query_phrases)<span class="sc">}</span><span class="ss"> query keyphrases"</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - </span><span class="sc">{</span>query_matrix<span class="sc">.</span>shape[<span class="dv">1</span>]<span class="sc">}</span><span class="ss"> dimensions per embedding"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Query embedding matrix shape: (7, 768)
+  - 7 query keyphrases
+  - 768 dimensions per embedding</code></pre>
+</div>
+</div>
+<p>Compute similarities and find the best matching movie keyphrases for each query keyphrase:</p>
+<div id="compute-keyphrase-similarities" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute similarities between query phrases and all movie keyphrases</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Shape: (num_query_phrases, num_all_keyphrases)</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>similarities <span class="op">=</span> cosine_similarity(query_matrix, keyphrase_matrix)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Similarity matrix shape: </span><span class="sc">{</span>similarities<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - </span><span class="sc">{</span>similarities<span class="sc">.</span>shape[<span class="dv">0</span>]<span class="sc">}</span><span class="ss"> query keyphrases"</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - </span><span class="sc">{</span>similarities<span class="sc">.</span>shape[<span class="dv">1</span>]<span class="sc">}</span><span class="ss"> movie keyphrases"</span>)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>top_k_phrases_per_query <span class="op">=</span> <span class="dv">30</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co"># For each query phrase, get top-k similar movie keyphrases</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Track: query phrase, movie phrase, movie_id, similarity</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>all_matches <span class="op">=</span> []</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> query_idx, query_phrase <span class="kw">in</span> <span class="bu">enumerate</span>(query_phrases):</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Get top matches for this query phrase</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>    phrase_similarities <span class="op">=</span> similarities[query_idx]</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>    top_indices <span class="op">=</span> np.argsort(phrase_similarities)[<span class="op">-</span>top_k_phrases_per_query:][::<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> idx <span class="kw">in</span> top_indices:</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Convert numpy int to Python int for Polars indexing</span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>        idx_int <span class="op">=</span> <span class="bu">int</span>(idx)</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>        movie_id <span class="op">=</span> keyphrase_df[<span class="st">"movie_id"</span>][idx_int]</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>        movie_phrase <span class="op">=</span> keyphrase_df[<span class="st">"keyphrase"</span>][idx_int]</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>        similarity_score <span class="op">=</span> <span class="bu">float</span>(phrase_similarities[idx])</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>        all_matches.append(</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>            {</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>                <span class="st">"query_phrase"</span>: query_phrase,</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>                <span class="st">"movie_phrase"</span>: movie_phrase,</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>                <span class="st">"movie_id"</span>: movie_id,</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>                <span class="st">"similarity"</span>: similarity_score,</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>matches_df <span class="op">=</span> pl.DataFrame(all_matches)</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Total matches: </span><span class="sc">{</span><span class="bu">len</span>(matches_df)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Similarity matrix shape: (7, 1684)
+  - 7 query keyphrases
+  - 1684 movie keyphrases
+
+Total matches: 210</code></pre>
+</div>
+</div>
+<p>Group matches by movie and find the best matching keyphrases for each. The <strong>matching_keyphrases</strong> column shows which movie keyphrases matched the user’s query:</p>
+<div id="aggregate-top-movies" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># For each movie, get the best matching keyphrases</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>movie_best_matches <span class="op">=</span> (</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    matches_df.sort([<span class="st">"movie_id"</span>, <span class="st">"similarity"</span>], descending<span class="op">=</span>[<span class="va">False</span>, <span class="va">True</span>])</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    .group_by(<span class="st">"movie_id"</span>)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    .agg(</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"similarity"</span>).<span class="bu">max</span>().alias(<span class="st">"max_similarity"</span>),</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"movie_phrase"</span>).first().alias(<span class="st">"top_movie_phrase"</span>),</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"query_phrase"</span>).first().alias(<span class="st">"top_query_phrase"</span>),</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Collect top 3 matching movie keyphrases</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"movie_phrase"</span>).head(<span class="dv">3</span>).alias(<span class="st">"matching_keyphrases"</span>),</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    .sort(<span class="st">"max_similarity"</span>, descending<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>    .head(settings.num_retrieved)</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Join with movie titles</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>candidate_movies <span class="op">=</span> movie_best_matches.join(</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>    movies.select([<span class="st">"movie_id"</span>, <span class="st">"title"</span>]), on<span class="op">=</span><span class="st">"movie_id"</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>).select([<span class="st">"movie_id"</span>, <span class="st">"title"</span>, <span class="st">"matching_keyphrases"</span>, <span class="st">"max_similarity"</span>])</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"### Top </span><span class="sc">{</span><span class="bu">len</span>(candidate_movies)<span class="sc">}</span><span class="ss"> Candidate Movies from Keyphrase Search</span><span class="ch">\n</span><span class="ss">"</span>))</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>candidate_movies</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="aggregate-top-movies-1" class="cell-output cell-output-display cell-output-markdown">
+<section id="top-10-candidate-movies-from-keyphrase-search" class="level3">
+<h3 class="anchored" data-anchor-id="top-10-candidate-movies-from-keyphrase-search">Top 10 Candidate Movies from Keyphrase Search</h3>
+</section>
+</div>
+<div id="aggregate-top-movies-2" class="cell-output cell-output-display" data-execution_count="13">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (10, 4)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">movie_id</th>
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">matching_keyphrases</th>
+<th data-quarto-table-cell-role="th">max_similarity</th>
+</tr>
+<tr class="even">
+<td>i64</td>
+<td>str</td>
+<td>list[str]</td>
+<td>f64</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>260</td>
+<td>"Star Wars: Episode IV - A New Hope (1977)"</td>
+<td>["emotional redemption arc", "spiritual coming-of-age", "emotional redemption arc"]</td>
+<td>0.805234</td>
+</tr>
+<tr class="even">
+<td>1221</td>
+<td>"Godfather: Part II, The (1974)"</td>
+<td>["dramatic visual storytelling", "nostalgia-driven crime", "gritty mafia storytelling"]</td>
+<td>0.787936</td>
+</tr>
+<tr class="odd">
+<td>1784</td>
+<td>"As Good as It Gets (1997)"</td>
+<td>["charming small-town setting", "darkly funny drama", "rom-com with emotional depth"]</td>
+<td>0.785004</td>
+</tr>
+<tr class="even">
+<td>2012</td>
+<td>"Back to the Future Part III (1990)"</td>
+<td>["nostalgic coming-of-age", "nostalgic comedy", "heist with heart"]</td>
+<td>1.0</td>
+</tr>
+<tr class="odd">
+<td>4014</td>
+<td>"Chocolat (2000)"</td>
+<td>["small-town whimsy", "mood-driven drama", "family secrets"]</td>
+<td>0.717595</td>
+</tr>
+<tr class="even">
+<td>4306</td>
+<td>"Shrek (2001)"</td>
+<td>["heartfelt coming-of-age", "ogre redemption journey"]</td>
+<td>0.735071</td>
+</tr>
+<tr class="odd">
+<td>4447</td>
+<td>"Legally Blonde (2001)"</td>
+<td>["charming small-town vibe", "lighthearted coming-of-age", "romantic workplace drama"]</td>
+<td>0.916701</td>
+</tr>
+<tr class="even">
+<td>6942</td>
+<td>"Love Actually (2003)"</td>
+<td>["Uplifting emotional journey", "Christmas spirit uplift", "Lighthearted yet poignant"]</td>
+<td>0.744323</td>
+</tr>
+<tr class="odd">
+<td>34162</td>
+<td>"Wedding Crashers (2005)"</td>
+<td>["charming small-town vibes", "rom-com with heart", "wedding crashers’ redemption arc"]</td>
+<td>0.928356</td>
+</tr>
+<tr class="even">
+<td>53125</td>
+<td>"Pirates of the Caribbean: At World's End (2007)"</td>
+<td>["pirate redemption arc"]</td>
+<td>0.759924</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="llm-ranking" class="level1">
+<h1>LLM Ranking</h1>
+<p>Use the LLM to re-rank and filter candidates based on the original user query:</p>
+<div id="llm-ranking-function" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="at">@retry</span>(<span class="dv">3</span>, exceptions<span class="op">=</span>(<span class="pp">ValueError</span>, json.JSONDecodeError))</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rank_movies_with_llm(query, candidate_movies_df):</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Use LLM to rank candidate movies based on user query.</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Args:</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">        query: Original natural language query</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">        candidate_movies_df: DataFrame with candidate movies (must have 'movie_id' and 'title' columns)</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns:</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">        List of dicts with ranked movies and explanations</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Prepare movie list for prompt</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    movie_list <span class="op">=</span> []</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> movie_dict <span class="kw">in</span> candidate_movies_df.to_dicts():</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>        movie_list.append(<span class="ss">f"movie_id: </span><span class="sc">{</span>movie_dict[<span class="st">'movie_id'</span>]<span class="sc">}</span><span class="ss">, title: </span><span class="sc">{</span>movie_dict[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>    movies_text <span class="op">=</span> <span class="st">"</span><span class="ch">\n</span><span class="st">"</span>.join(movie_list)</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>    prompt <span class="op">=</span> <span class="ss">f"""</span><span class="op">\</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="ss">You are a movie recommendation expert. A user wants a movie recommendation.</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a><span class="ss">User Query: "</span><span class="sc">{</span>query<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a><span class="ss">Candidate Movies:</span></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a><span class="sc">{</span>movies_text<span class="sc">}</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a><span class="ss">Task:</span></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a><span class="ss">1. Select the top 3 movies that best match the user's query</span></span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a><span class="ss">2. Rank them from best to worst (1 = best)</span></span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a><span class="ss">3. Provide a brief reason for each recommended movie</span></span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a><span class="ss">4. Only include movies that are truly a good match</span></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY valid JSON in this format:</span></span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a><span class="ch">{{</span></span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a><span class="ss">  "recommendations": [</span></span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a><span class="ss">    </span><span class="ch">{{</span></span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a><span class="ss">      "rank": 1,</span></span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a><span class="ss">      "movie_id": 123,</span></span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a><span class="ss">      "reason": "Brief explanation of why this matches the query"</span></span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a><span class="ss">    </span><span class="ch">}}</span><span class="ss">,</span></span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a><span class="ss">    ...</span></span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a><span class="ss">  ]</span></span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a><span class="ch">}}</span></span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> ollama_generate_json(prompt, model<span class="op">=</span>settings.llm_model, temperature<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="st">"recommendations"</span> <span class="kw">not</span> <span class="kw">in</span> result <span class="kw">or</span> <span class="kw">not</span> <span class="bu">isinstance</span>(result[<span class="st">"recommendations"</span>], <span class="bu">list</span>):</span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"Invalid ranking format"</span>)</span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a><span class="co"># Rank the candidates</span></span>
+<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a>ranking_result <span class="op">=</span> rank_movies_with_llm(user_query, candidate_movies)</span>
+<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"### LLM-Ranked Recommendations</span><span class="ch">\n</span><span class="st">"</span>))</span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>show_response(ranking_result)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="llm-ranking-function-1" class="cell-output cell-output-display cell-output-markdown">
+<section id="llm-ranked-recommendations" class="level3">
+<h3 class="anchored" data-anchor-id="llm-ranked-recommendations">LLM-Ranked Recommendations</h3>
+</section>
+</div>
+<div id="llm-ranking-function-2" class="cell-output cell-output-display cell-output-markdown" data-execution_count="14">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>{
+  "recommendations": [
+    {
+      "rank": 1,
+      "movie_id": 6942,
+      "reason": "Uplifting and nostalgic with a lighthearted, romantic tone, perfect for unwinding after a long day. The film\u2019s warm, heartfelt storytelling and gentle humor align well with the user\u2019s preference for calmness and nostalgia."
+    },
+    {
+      "rank": 2,
+      "movie_id": 4014,
+      "reason": "A visually charming and emotionally uplifting film with a nostalgic touch, focusing on love, family, and small joys. Its gentle pace and sweet romance make it ideal for relaxation."
+    },
+    {
+      "rank": 3,
+      "movie_id": 1784,
+      "reason": "While not entirely nostalgic, *As Good as It Gets* delivers warmth, humor, and emotional uplift through its quirky protagonist and heartwarming moments. Its relaxed pace and uplifting themes fit the user\u2019s preference for calmness."
+    }
+  ]
+}</code></pre>
+</div>
+</div>
+<p>Extract the ranked movie IDs and prepare the final recommendations:</p>
+<div id="cell-extract-final-recommendations" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>final_recommendations <span class="op">=</span> pl.DataFrame(ranking_result[<span class="st">"recommendations"</span>]).join(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    movies.select(<span class="st">"movie_id"</span>, <span class="st">"title"</span>), on<span class="op">=</span><span class="st">"movie_id"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>final_recommendations</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="extract-final-recommendations" class="cell-output cell-output-display" data-execution_count="15">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (3, 4)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">rank</th>
+<th data-quarto-table-cell-role="th">movie_id</th>
+<th data-quarto-table-cell-role="th">reason</th>
+<th data-quarto-table-cell-role="th">title</th>
+</tr>
+<tr class="even">
+<td>i64</td>
+<td>i64</td>
+<td>str</td>
+<td>str</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>6942</td>
+<td>"Uplifting and nostalgic with a lighthearted, roman…</td>
+<td>"Love Actually (2003)"</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>4014</td>
+<td>"A visually charming and emotionally uplifting film…</td>
+<td>"Chocolat (2000)"</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>1784</td>
+<td>"While not entirely nostalgic, *As Good as It Gets*…</td>
+<td>"As Good as It Gets (1997)"</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="display-with-posters" class="level1">
+<h1>Display with Posters</h1>
+<p>Finally, show the recommendations with movie posters:</p>
+<div id="display-recommendations-with-posters" class="cell" data-execution_count="16">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remind us with the query</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"""</span><span class="op">\</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="ss">**User Query:**</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="ss">_</span><span class="sc">{</span>user_query<span class="sc">}</span><span class="ss">_</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span>)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Join with posters (via links to get tmdb_id)</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>recs_with_posters <span class="op">=</span> final_recommendations.join(</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>    links.select([<span class="st">"movie_id"</span>, <span class="st">"tmdb_id"</span>]), on<span class="op">=</span><span class="st">"movie_id"</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>).join(posters, on<span class="op">=</span><span class="st">"tmdb_id"</span>, how<span class="op">=</span><span class="st">"inner"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span>)</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Display each recommendation with poster</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"## 🎬 Your Personalized Recommendations</span><span class="ch">\n</span><span class="st">"</span>))</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> rec <span class="kw">in</span> recs_with_posters.to_dicts():</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>    display(Markdown(<span class="ss">f"### </span><span class="sc">{</span>rec[<span class="st">'rank'</span>]<span class="sc">}</span><span class="ss">. </span><span class="sc">{</span>rec[<span class="st">'title'</span>]<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>))</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>    display(Markdown(<span class="ss">f"_</span><span class="sc">{</span>rec[<span class="st">'reason'</span>]<span class="sc">}</span><span class="ss">_</span><span class="ch">\n</span><span class="ss">"</span>))</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>    display(tmdb_images([rec[<span class="st">"poster_path"</span>]]))</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>    display(Markdown(<span class="st">"---</span><span class="ch">\n</span><span class="st">"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-recommendations-with-posters-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>User Query:</strong> <em>I’m tired after a long day. Want something calm, uplifting, maybe a bit nostalgic. No intense action or horror.</em></p>
+</div>
+<div id="display-recommendations-with-posters-2" class="cell-output cell-output-display cell-output-markdown">
+<section id="your-personalized-recommendations" class="level2">
+<h2 class="anchored" data-anchor-id="your-personalized-recommendations">🎬 Your Personalized Recommendations</h2>
+</section>
+</div>
+<div id="display-recommendations-with-posters-3" class="cell-output cell-output-display cell-output-markdown">
+<section id="as-good-as-it-gets-1997" class="level3">
+<h3 class="anchored" data-anchor-id="as-good-as-it-gets-1997">3. As Good as It Gets (1997)</h3>
+</section>
+</div>
+<div id="display-recommendations-with-posters-4" class="cell-output cell-output-display cell-output-markdown">
+<p><em>While not entirely nostalgic, <em>As Good as It Gets</em> delivers warmth, humor, and emotional uplift through its quirky protagonist and heartwarming moments. Its relaxed pace and uplifting themes fit the user’s preference for calmness.</em></p>
+</div>
+<div id="display-recommendations-with-posters-5" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/xXxuJPNUDZ0vjsAXca0O5p3leVB.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="display-recommendations-with-posters-6" class="cell-output cell-output-display cell-output-markdown">
+<hr>
+</div>
+<div id="display-recommendations-with-posters-7" class="cell-output cell-output-display cell-output-markdown">
+<section id="chocolat-2000" class="level3">
+<h3 class="anchored" data-anchor-id="chocolat-2000">2. Chocolat (2000)</h3>
+</section>
+</div>
+<div id="display-recommendations-with-posters-8" class="cell-output cell-output-display cell-output-markdown">
+<p><em>A visually charming and emotionally uplifting film with a nostalgic touch, focusing on love, family, and small joys. Its gentle pace and sweet romance make it ideal for relaxation.</em></p>
+</div>
+<div id="display-recommendations-with-posters-9" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/7sUfspdrvxLMgGkrOq46lPh0Scj.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="display-recommendations-with-posters-10" class="cell-output cell-output-display cell-output-markdown">
+<hr>
+</div>
+<div id="display-recommendations-with-posters-11" class="cell-output cell-output-display cell-output-markdown">
+<section id="love-actually-2003" class="level3">
+<h3 class="anchored" data-anchor-id="love-actually-2003">1. Love Actually (2003)</h3>
+</section>
+</div>
+<div id="display-recommendations-with-posters-12" class="cell-output cell-output-display cell-output-markdown">
+<p><em>Uplifting and nostalgic with a lighthearted, romantic tone, perfect for unwinding after a long day. The film’s warm, heartfelt storytelling and gentle humor align well with the user’s preference for calmness and nostalgia.</em></p>
+</div>
+<div id="display-recommendations-with-posters-13" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/7QPeVsr9rcFU9Gl90yg0gTOTpVv.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="display-recommendations-with-posters-14" class="cell-output cell-output-display cell-output-markdown">
+<hr>
+</div>
+</div>
+<p><strong>Try these example queries:</strong></p>
+<ul>
+<li>“I want a mind-bending thriller that makes me think. Something with plot twists and mystery.”</li>
+<li>“Something uplifting and inspiring for a Sunday afternoon. Family-friendly.”</li>
+<li>“Dark, gritty crime drama with complex characters.”</li>
+<li>“Romantic comedy that’s actually funny, not too cheesy.”</li>
+</ul>
+</section>
+<section id="key-takeaways" class="level1">
+<h1>Key Takeaways</h1>
+<p><strong>Why Multi-Vector Keyphrases Work:</strong></p>
+<ul>
+<li><strong>Richer matching</strong>: 20-30 keyphrase embeddings per movie vs.&nbsp;1 single embedding → better retrieval recall</li>
+<li><strong>Explainability</strong>: Show which movie aspects matched the user’s query</li>
+<li><strong>Semantic bridge</strong>: LLM-generated keyphrases translate user intent into searchable item features</li>
+<li><strong>Inspired by ColBERT</strong> <span class="citation" data-cites="khattab2020colbert">(<a href="#ref-khattab2020colbert" role="doc-biblioref">Khattab &amp; Zaharia, 2020</a>)</span>: Multiple embeddings per item with late interaction, but using interpretable semantic phrases</li>
+</ul>
+<p><strong>Efficient Retrieval → Ranking Architecture:</strong></p>
+<ol type="1">
+<li><strong>Fast retrieval</strong>: Vector similarity search finds 10 candidates from keyphrase matches</li>
+<li><strong>LLM ranking</strong>: Re-rank only the candidates (not entire catalog) for final top 3</li>
+</ol>
+<p><strong>Limitations &amp; Extensions:</strong></p>
+<ul>
+<li>This is a <strong>single-turn demo</strong>, not multi-turn conversation</li>
+<li>Could add: keyphrase weighting, hybrid scoring with collaborative filtering, personalization from user history, temporal/trending keyphrases</li>
+</ul>
+<p><strong>Architecture</strong>: Combines ideas from RAG <span class="citation" data-cites="lewis2020retrieval">(<a href="#ref-lewis2020retrieval" role="doc-biblioref">Lewis et al., 2020</a>)</span>, conversational recommender systems <span class="citation" data-cites="zhou2020survey">(<a href="#ref-zhou2020survey" role="doc-biblioref">Zhou et al., 2020</a>)</span>, and multi-vector retrieval <span class="citation" data-cites="khattab2020colbert">(<a href="#ref-khattab2020colbert" role="doc-biblioref">Khattab &amp; Zaharia, 2020</a>)</span> ```</p>
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
+<div id="ref-khattab2020colbert" class="csl-entry" role="listitem">
+Khattab, O., &amp; Zaharia, M. (2020). <span>ColBERT</span>: Efficient and effective passage search via contextualized late interaction over <span>BERT</span>. <em>Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR ’20</em>, 39–48. <a href="https://doi.org/10.1145/3397271.3401075">https://doi.org/10.1145/3397271.3401075</a>
+</div>
+<div id="ref-lewis2020retrieval" class="csl-entry" role="listitem">
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Küttler, H., Lewis, M., Yih, W., Rocktäschel, T., Riedel, S., &amp; Kiela, D. (2020). Retrieval-augmented generation for knowledge-intensive <span>NLP</span> tasks. <em>Advances in Neural Information Processing Systems</em>, <em>33</em>, 9459–9474. <a href="https://arxiv.org/abs/2005.11401">https://arxiv.org/abs/2005.11401</a>
+</div>
+<div id="ref-zhou2020survey" class="csl-entry" role="listitem">
+Zhou, K., Zhou, Y., Zhao, W. X., Wang, X., &amp; Wen, J.-R. (2020). A survey on conversational recommender systems. <em>ACM Computing Surveys</em>, <em>54</em>(4), 1–36. <a href="https://doi.org/10.1145/3453154">https://doi.org/10.1145/3453154</a>
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>ML Prague 2026 Workshop</p>
+</div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/jankislinger/recsys-genai">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

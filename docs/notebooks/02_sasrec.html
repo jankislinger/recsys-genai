@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Part II: Self-Attentive Sequential Recommendation – RecSys GenAI Workshop</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../assets/favicon.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-5316630253f2b0b36f77cd4e7e737bf8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">RecSys GenAI Workshop</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-slides" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Slides</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-slides">    
+        <li>
+    <a class="dropdown-item" href="../slides/00_introduction.html">
+ <span class="dropdown-text">Introduction</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/01a_foundations.html">
+ <span class="dropdown-text">I.a: Foundations</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/01b_ease.html">
+ <span class="dropdown-text">I.b: EASE</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/02a_transformer_architecture.html">
+ <span class="dropdown-text">II.a: Transformer Architecture</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/02b_transformer_recommendation.html">
+ <span class="dropdown-text">II.b: Transformers &amp; SASRec</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/04a_reranking.html">
+ <span class="dropdown-text">IV.a: Reranking &amp; Slate Optimization</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/04b_generative_pages.html">
+ <span class="dropdown-text">IV.b: Generative Pages</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/07_wrapup.html">
+ <span class="dropdown-text">Wrap-up</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-notebooks" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Notebooks</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-notebooks">    
+        <li>
+    <a class="dropdown-item" href="../notebooks/01a_movielens.html">
+ <span class="dropdown-text">I.a: MovieLens Dataset</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/01b_ease.html">
+ <span class="dropdown-text">I.b: EASE</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/02_sasrec.html">
+ <span class="dropdown-text">II: SASRec</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/03a_llm_recommendation.html">
+ <span class="dropdown-text">III.a: LLMs for Recommendation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/03b_conversational_recommendation.html">
+ <span class="dropdown-text">III.b: Conversational Recommendation</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/04a_slate_generation.html">
+ <span class="dropdown-text">IV.a: Slate Generation</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../references.html"> 
+<span class="menu-text">References</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jankislinger/recsys-genai"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#prepare-sequential-data" id="toc-prepare-sequential-data" class="nav-link" data-scroll-target="#prepare-sequential-data">Prepare Sequential Data</a>
+  <ul class="collapse">
+  <li><a href="#load-and-filter-data" id="toc-load-and-filter-data" class="nav-link" data-scroll-target="#load-and-filter-data">Load and Filter Data</a></li>
+  <li><a href="#extract-user-sequences" id="toc-extract-user-sequences" class="nav-link" data-scroll-target="#extract-user-sequences">Extract User Sequences</a></li>
+  <li><a href="#create-item-vocabulary" id="toc-create-item-vocabulary" class="nav-link" data-scroll-target="#create-item-vocabulary">Create Item Vocabulary</a></li>
+  <li><a href="#traintest-split" id="toc-traintest-split" class="nav-link" data-scroll-target="#traintest-split">Train/Test Split</a></li>
+  <li><a href="#create-dataloader" id="toc-create-dataloader" class="nav-link" data-scroll-target="#create-dataloader">Create DataLoader</a></li>
+  </ul></li>
+  <li><a href="#build-sasrec-model" id="toc-build-sasrec-model" class="nav-link" data-scroll-target="#build-sasrec-model">Build SASRec Model</a>
+  <ul class="collapse">
+  <li><a href="#model-architecture" id="toc-model-architecture" class="nav-link" data-scroll-target="#model-architecture">Model Architecture</a></li>
+  </ul></li>
+  <li><a href="#train-sasrec" id="toc-train-sasrec" class="nav-link" data-scroll-target="#train-sasrec">Train SASRec</a>
+  <ul class="collapse">
+  <li><a href="#plot-training-loss" id="toc-plot-training-loss" class="nav-link" data-scroll-target="#plot-training-loss">Plot Training Loss</a></li>
+  </ul></li>
+  <li><a href="#generate-recommendations" id="toc-generate-recommendations" class="nav-link" data-scroll-target="#generate-recommendations">Generate Recommendations</a>
+  <ul class="collapse">
+  <li><a href="#predict-for-sample-user" id="toc-predict-for-sample-user" class="nav-link" data-scroll-target="#predict-for-sample-user">Predict for Sample User</a></li>
+  </ul></li>
+  <li><a href="#evaluate-model" id="toc-evaluate-model" class="nav-link" data-scroll-target="#evaluate-model">Evaluate Model</a>
+  <ul class="collapse">
+  <li><a href="#results-interpretation" id="toc-results-interpretation" class="nav-link" data-scroll-target="#results-interpretation">Results Interpretation</a></li>
+  </ul></li>
+  <li><a href="#analyze-attention-patterns" id="toc-analyze-attention-patterns" class="nav-link" data-scroll-target="#analyze-attention-patterns">Analyze Attention Patterns</a>
+  <ul class="collapse">
+  <li><a href="#sample-users-movie-sequence" id="toc-sample-users-movie-sequence" class="nav-link" data-scroll-target="#sample-users-movie-sequence">Sample User’s Movie Sequence</a></li>
+  <li><a href="#extract-attention-weights" id="toc-extract-attention-weights" class="nav-link" data-scroll-target="#extract-attention-weights">Extract Attention Weights</a></li>
+  </ul></li>
+  <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Part II: Self-Attentive Sequential Recommendation</h1>
+<p class="subtitle lead">Transformers for Next-Item Prediction</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>This notebook implements <strong>SASRec</strong> (Self-Attentive Sequential Recommendation), a transformer-based model for sequential recommendation.</p>
+<p><strong>Key Paper:</strong></p>
+<ul>
+<li><span class="citation" data-cites="kang2018self">Kang &amp; McAuley (<a href="#ref-kang2018self" role="doc-biblioref">2018</a>)</span> introduced SASRec, applying self-attention to sequential recommendation</li>
+</ul>
+<p><strong>What we’ll build:</strong></p>
+<ol type="1">
+<li>Sequential data preprocessing</li>
+<li>SASRec model architecture</li>
+<li>Training loop</li>
+<li>Evaluation and visualization</li>
+</ol>
+<div id="imports" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch.nn <span class="im">as</span> nn</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> Markdown, display</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotnine <span class="im">import</span> <span class="op">*</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> Field</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic_settings <span class="im">import</span> BaseSettings, SettingsConfigDict</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.utils.data <span class="im">import</span> DataLoader</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.data_utils <span class="im">import</span> SequenceDataset, get_user_sequences, load_movielens</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.metrics <span class="im">import</span> ndcg_at_k, recall_at_k</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.sasrec <span class="im">import</span> SASRec, train_sasrec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="setup" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>theme_set(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    theme_minimal()</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> theme(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        plot_title<span class="op">=</span>element_text(weight<span class="op">=</span><span class="st">"bold"</span>, size<span class="op">=</span><span class="dv">14</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        axis_title<span class="op">=</span>element_text(size<span class="op">=</span><span class="dv">12</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        figure_size<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">42</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">"cuda"</span> <span class="cf">if</span> torch.cuda.is_available() <span class="cf">else</span> <span class="st">"cpu"</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Using device: </span><span class="sc">{</span>device<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Using device: cuda</code></pre>
+</div>
+</div>
+<div id="training-settings" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SASRecSettings(BaseSettings):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Configuration for SASRec training.</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Can be overridden with environment variables using SASREC_ prefix.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Example: SASREC_NUM_EPOCHS=10</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    model_config <span class="op">=</span> SettingsConfigDict(env_prefix<span class="op">=</span><span class="st">"SASREC_"</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Data preprocessing</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    min_user_ratings: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">20</span>, description<span class="op">=</span><span class="st">"Minimum number of ratings per user"</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    rating_threshold: <span class="bu">float</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="fl">4.0</span>, description<span class="op">=</span><span class="st">"Minimum rating for positive feedback"</span>)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    min_sequence_length: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">10</span>, description<span class="op">=</span><span class="st">"Minimum sequence length"</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    max_sequence_length: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">50</span>, description<span class="op">=</span><span class="st">"Maximum sequence length"</span>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Model architecture</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    num_blocks: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">2</span>, description<span class="op">=</span><span class="st">"Number of transformer blocks"</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    num_heads: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">2</span>, description<span class="op">=</span><span class="st">"Number of attention heads"</span>)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    hidden_size: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">64</span>, description<span class="op">=</span><span class="st">"Hidden dimension size"</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    dropout: <span class="bu">float</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="fl">0.2</span>, description<span class="op">=</span><span class="st">"Dropout rate"</span>)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Training parameters</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    batch_size: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">128</span>, description<span class="op">=</span><span class="st">"Training batch size"</span>)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    num_epochs: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">5</span>, description<span class="op">=</span><span class="st">"Number of training epochs"</span>)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    learning_rate: <span class="bu">float</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="fl">0.001</span>, description<span class="op">=</span><span class="st">"Learning rate for optimizer"</span>)</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Evaluation</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    eval_k: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">10</span>, description<span class="op">=</span><span class="st">"K for Recall@K and NDCG@K metrics"</span>)</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    eval_sample_size: <span class="bu">int</span> <span class="op">=</span> Field(default<span class="op">=</span><span class="dv">1000</span>, description<span class="op">=</span><span class="st">"Number of test users to evaluate"</span>)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>settings <span class="op">=</span> SASRecSettings()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="prepare-sequential-data" class="level1">
+<h1>Prepare Sequential Data</h1>
+<section id="load-and-filter-data" class="level2">
+<h2 class="anchored" data-anchor-id="load-and-filter-data">Load and Filter Data</h2>
+<div id="cell-load-data" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>movies, ratings, tags, links <span class="op">=</span> load_movielens(<span class="st">"../data"</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter to users with enough ratings</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>user_counts <span class="op">=</span> ratings.group_by(<span class="st">"user_id"</span>).agg(pl.<span class="bu">len</span>().alias(<span class="st">"count"</span>))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>active_users <span class="op">=</span> user_counts.<span class="bu">filter</span>(pl.col(<span class="st">"count"</span>) <span class="op">&gt;=</span> settings.min_user_ratings)[<span class="st">"user_id"</span>].to_list()</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter ratings</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>filtered_ratings <span class="op">=</span> ratings.<span class="bu">filter</span>(</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"user_id"</span>).is_in(active_users) <span class="op">&amp;</span> (pl.col(<span class="st">"rating"</span>) <span class="op">&gt;=</span> settings.rating_threshold)  <span class="co"># Implicit positive feedback</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>load_stats <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="ss">**Loaded Data:**</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- Active users (≥</span><span class="sc">{</span>settings<span class="sc">.</span>min_user_ratings<span class="sc">}</span><span class="ss"> ratings): </span><span class="sc">{</span><span class="bu">len</span>(active_users)<span class="sc">:,}</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- Positive interactions: </span><span class="sc">{</span><span class="bu">len</span>(filtered_ratings)<span class="sc">:,}</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>display(Markdown(load_stats))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="load-data" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Loaded Data:</strong></p>
+<ul>
+<li>Active users (≥20 ratings): 204,443</li>
+<li>Positive interactions: 16,182,634</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="extract-user-sequences" class="level2">
+<h2 class="anchored" data-anchor-id="extract-user-sequences">Extract User Sequences</h2>
+<div id="cell-extract-user-sequences" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get sequences ordered by timestamp</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>sequences <span class="op">=</span> get_user_sequences(filtered_ratings, max_len<span class="op">=</span>settings.max_sequence_length, min_len<span class="op">=</span>settings.min_sequence_length)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>example_user <span class="op">=</span> <span class="bu">list</span>(sequences.keys())[<span class="dv">0</span>]</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>sequence_stats <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="ss">**User Sequences:**</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="ss">- Number of sequences: </span><span class="sc">{</span><span class="bu">len</span>(sequences)<span class="sc">}</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="ss">- Example sequence (user </span><span class="sc">{</span>example_user<span class="sc">}</span><span class="ss">): </span><span class="sc">{</span>sequences[example_user][:<span class="dv">10</span>]<span class="sc">}</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>display(Markdown(sequence_stats))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="extract-user-sequences" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>User Sequences:</strong></p>
+<ul>
+<li>Number of sequences: 194848</li>
+<li>Example sequence (user 214082): [780, 6, 733, 104, 788, 1061, 344, 231, 296, 592]</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="create-item-vocabulary" class="level2">
+<h2 class="anchored" data-anchor-id="create-item-vocabulary">Create Item Vocabulary</h2>
+<div id="cell-create-item-vocabulary" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Map movie IDs to indices (0 is reserved for padding)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>all_items <span class="op">=</span> <span class="bu">set</span>()</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> seq <span class="kw">in</span> sequences.values():</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    all_items.update(seq)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>item_to_idx <span class="op">=</span> {item_id: idx <span class="op">+</span> <span class="dv">1</span> <span class="cf">for</span> idx, item_id <span class="kw">in</span> <span class="bu">enumerate</span>(<span class="bu">sorted</span>(all_items))}</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>idx_to_item <span class="op">=</span> {idx: item_id <span class="cf">for</span> item_id, idx <span class="kw">in</span> item_to_idx.items()}</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>idx_to_item[<span class="dv">0</span>] <span class="op">=</span> <span class="dv">0</span>  <span class="co"># Padding</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Remap sequences to indices</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>indexed_sequences <span class="op">=</span> {</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    uid: [item_to_idx[item_id] <span class="cf">for</span> item_id <span class="kw">in</span> seq] <span class="cf">for</span> uid, seq <span class="kw">in</span> sequences.items()</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>vocab_stats <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="ss">**Item Vocabulary:**</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- Vocabulary size: </span><span class="sc">{</span><span class="bu">len</span>(item_to_idx)<span class="sc">}</span><span class="ss"> items</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>display(Markdown(vocab_stats))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="create-item-vocabulary" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Item Vocabulary:</strong></p>
+<ul>
+<li>Vocabulary size: 37716 items</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="traintest-split" class="level2">
+<h2 class="anchored" data-anchor-id="traintest-split">Train/Test Split</h2>
+<div id="cell-train-test-split" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Split sequences into train/test</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Test: last item of each sequence</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Train: all but last item</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>train_sequences <span class="op">=</span> {}</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>test_ground_truth <span class="op">=</span> {}</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> uid, seq <span class="kw">in</span> indexed_sequences.items():</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(seq) <span class="op">&lt;</span> <span class="dv">2</span>:</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    train_sequences[uid] <span class="op">=</span> seq[:<span class="op">-</span><span class="dv">1</span>]  <span class="co"># All but last</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    test_ground_truth[uid] <span class="op">=</span> {seq[<span class="op">-</span><span class="dv">1</span>]}  <span class="co"># Last item</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>split_stats <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="ss">**Train/Test Split:**</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- Train sequences: </span><span class="sc">{</span><span class="bu">len</span>(train_sequences)<span class="sc">}</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="ss">- Test sequences: </span><span class="sc">{</span><span class="bu">len</span>(test_ground_truth)<span class="sc">}</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>display(Markdown(split_stats))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="train-test-split" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Train/Test Split:</strong></p>
+<ul>
+<li>Train sequences: 194848</li>
+<li>Test sequences: 194848</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="create-dataloader" class="level2">
+<h2 class="anchored" data-anchor-id="create-dataloader">Create DataLoader</h2>
+<div id="cell-create-dataloader" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>train_dataset <span class="op">=</span> SequenceDataset(train_sequences, max_len<span class="op">=</span>settings.max_sequence_length)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>train_loader <span class="op">=</span> DataLoader(train_dataset, batch_size<span class="op">=</span>settings.batch_size, shuffle<span class="op">=</span><span class="va">True</span>, num_workers<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Inspect a batch</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>sample_batch <span class="op">=</span> <span class="bu">next</span>(<span class="bu">iter</span>(train_loader))</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>dataloader_stats <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="ss">**DataLoader:**</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- Training batches: </span><span class="sc">{</span><span class="bu">len</span>(train_loader)<span class="sc">}</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- Batch sequence shape: </span><span class="sc">{</span>sample_batch[<span class="dv">0</span>]<span class="sc">.</span>shape<span class="sc">}</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- Batch target shape: </span><span class="sc">{</span>sample_batch[<span class="dv">1</span>]<span class="sc">.</span>shape<span class="sc">}</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>display(Markdown(dataloader_stats))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="create-dataloader" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>DataLoader:</strong></p>
+<ul>
+<li>Training batches: 1523</li>
+<li>Batch sequence shape: torch.Size([128, 50])</li>
+<li>Batch target shape: torch.Size([128])</li>
+</ul>
+</div>
+</div>
+</section>
+</section>
+<section id="build-sasrec-model" class="level1">
+<h1>Build SASRec Model</h1>
+<section id="model-architecture" class="level2">
+<h2 class="anchored" data-anchor-id="model-architecture">Model Architecture</h2>
+<div id="cell-build-sasrec-model" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>num_items <span class="op">=</span> <span class="bu">len</span>(item_to_idx)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> SASRec(</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    num_items<span class="op">=</span>num_items,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    max_len<span class="op">=</span>settings.max_sequence_length,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    num_blocks<span class="op">=</span>settings.num_blocks,</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    num_heads<span class="op">=</span>settings.num_heads,</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    hidden_size<span class="op">=</span>settings.hidden_size,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    dropout<span class="op">=</span>settings.dropout</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>model_stats <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="ss">**Model Architecture:**</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- Model parameters: </span><span class="sc">{</span><span class="bu">sum</span>(p.numel() <span class="cf">for</span> p <span class="kw">in</span> model.parameters())<span class="sc">:,}</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>display(Markdown(model_stats))</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="build-sasrec-model" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Model Architecture:</strong></p>
+<ul>
+<li>Model parameters: 2,567,168</li>
+</ul>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>SASRec(
+  (item_emb): Embedding(37717, 64, padding_idx=0)
+  (pos_emb): Embedding(50, 64)
+  (blocks): ModuleList(
+    (0-2): 3 x TransformerBlock(
+      (attention): MultiheadAttention(
+        (out_proj): NonDynamicallyQuantizableLinear(in_features=64, out_features=64, bias=True)
+      )
+      (ffn): Sequential(
+        (0): Linear(in_features=64, out_features=256, bias=True)
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.2, inplace=False)
+        (3): Linear(in_features=256, out_features=64, bias=True)
+        (4): Dropout(p=0.2, inplace=False)
+      )
+      (ln1): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+      (dropout): Dropout(p=0.2, inplace=False)
+    )
+  )
+  (dropout): Dropout(p=0.2, inplace=False)
+  (layer_norm): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+)</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="train-sasrec" class="level1">
+<h1>Train SASRec</h1>
+<p><strong>Objective</strong>: Predict the next item given a sequence</p>
+<p><span class="math display">\[
+\mathcal{L} = -\log P(i_{t+1} | i_1, i_2, ..., i_t)
+\]</span></p>
+<div id="train-sasrec" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Train model</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>losses <span class="op">=</span> train_sasrec(model<span class="op">=</span>model, dataloader<span class="op">=</span>train_loader, num_epochs<span class="op">=</span>settings.num_epochs, lr<span class="op">=</span>settings.learning_rate, device<span class="op">=</span>device)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 1/20, Loss: 10.6246
+Epoch 2/20, Loss: 8.0213
+Epoch 3/20, Loss: 7.8421
+Epoch 4/20, Loss: 7.6782
+Epoch 5/20, Loss: 7.5332
+Epoch 6/20, Loss: 7.4257
+Epoch 7/20, Loss: 7.3573
+Epoch 8/20, Loss: 7.3358
+Epoch 9/20, Loss: 7.2718
+Epoch 10/20, Loss: 7.2367
+Epoch 11/20, Loss: 7.1992
+Epoch 12/20, Loss: 7.1786
+Epoch 13/20, Loss: 7.1220
+Epoch 14/20, Loss: 7.0757
+Epoch 15/20, Loss: 7.0378
+Epoch 16/20, Loss: 6.9982
+Epoch 17/20, Loss: 6.9525
+Epoch 18/20, Loss: 6.9173
+Epoch 19/20, Loss: 6.8819
+Epoch 20/20, Loss: 6.8481</code></pre>
+</div>
+</div>
+<section id="plot-training-loss" class="level2">
+<h2 class="anchored" data-anchor-id="plot-training-loss">Plot Training Loss</h2>
+<div id="cell-plot-training-loss" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>losses_df <span class="op">=</span> pl.DataFrame({<span class="st">"epoch"</span>: <span class="bu">list</span>(<span class="bu">range</span>(<span class="dv">1</span>, <span class="bu">len</span>(losses) <span class="op">+</span> <span class="dv">1</span>)), <span class="st">"loss"</span>: losses})</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>(</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    ggplot(losses_df, aes(x<span class="op">=</span><span class="st">"epoch"</span>, y<span class="op">=</span><span class="st">"loss"</span>))</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> geom_line(size<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> geom_point(size<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> labs(title<span class="op">=</span><span class="st">"SASRec Training Loss"</span>, x<span class="op">=</span><span class="st">"Epoch"</span>, y<span class="op">=</span><span class="st">"Loss"</span>)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="11">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/plot-training-loss-output-1.png" id="plot-training-loss" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="generate-recommendations" class="level1">
+<h1>Generate Recommendations</h1>
+<section id="predict-for-sample-user" class="level2">
+<h2 class="anchored" data-anchor-id="predict-for-sample-user">Predict for Sample User</h2>
+<p>Let’s see what SASRec recommends for a randomly sampled user!</p>
+<div id="predict-for-sample-user" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Sample a random user from active_users who has training sequences</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>available_users <span class="op">=</span> [uid <span class="cf">for</span> uid <span class="kw">in</span> active_users <span class="cf">if</span> uid <span class="kw">in</span> train_sequences]</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>sample_user_id <span class="op">=</span> np.random.choice(available_users)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>sample_seq <span class="op">=</span> train_sequences[sample_user_id]</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Pad/truncate to max_len</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">len</span>(sample_seq) <span class="op">&gt;</span> settings.max_sequence_length:</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    sample_seq <span class="op">=</span> sample_seq[<span class="op">-</span>settings.max_sequence_length:]</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    sample_seq <span class="op">=</span> [<span class="dv">0</span>] <span class="op">*</span> (settings.max_sequence_length <span class="op">-</span> <span class="bu">len</span>(sample_seq)) <span class="op">+</span> sample_seq</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert to tensor</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>seq_tensor <span class="op">=</span> torch.tensor([sample_seq], dtype<span class="op">=</span>torch.<span class="bu">long</span>).to(device)</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>top_items, top_scores <span class="op">=</span> model.predict_next(seq_tensor, k<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Map back to movie IDs</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>recommendations <span class="op">=</span> [idx_to_item[idx.item()] <span class="cf">for</span> idx <span class="kw">in</span> top_items[<span class="dv">0</span>]]</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Display</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**User </span><span class="sc">{</span>sample_user_id<span class="sc">}</span><span class="ss">'s Recent History:**"</span>))</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>recent_items <span class="op">=</span> [idx_to_item[idx] <span class="cf">for</span> idx <span class="kw">in</span> sample_seq[<span class="op">-</span><span class="dv">5</span>:] <span class="cf">if</span> idx <span class="op">&gt;</span> <span class="dv">0</span>]</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>recent_movies <span class="op">=</span> movies.<span class="bu">filter</span>(pl.col(<span class="st">"movie_id"</span>).is_in(recent_items))</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>display(recent_movies.select([<span class="st">"title"</span>, <span class="st">"genres"</span>]))</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**SASRec Recommendations for User </span><span class="sc">{</span>sample_user_id<span class="sc">}</span><span class="ss">:**"</span>))</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>rec_movies <span class="op">=</span> movies.<span class="bu">filter</span>(pl.col(<span class="st">"movie_id"</span>).is_in(recommendations))</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>display(rec_movies.select([<span class="st">"title"</span>, <span class="st">"genres"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="predict-for-sample-user-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>User 59146’s Recent History:</strong></p>
+</div>
+<div id="predict-for-sample-user-2" class="cell-output cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (5, 2)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">genres</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>list[str]</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"Shawshank Redemption, The (199…</td>
+<td>["Crime", "Drama"]</td>
+</tr>
+<tr class="even">
+<td>"Fargo (1996)"</td>
+<td>["Comedy", "Crime", … "Thriller"]</td>
+</tr>
+<tr class="odd">
+<td>"Dr. Strangelove or: How I Lear…</td>
+<td>["Comedy", "War"]</td>
+</tr>
+<tr class="even">
+<td>"Psycho (1960)"</td>
+<td>["Crime", "Horror"]</td>
+</tr>
+<tr class="odd">
+<td>"Chinatown (1974)"</td>
+<td>["Crime", "Film-Noir", … "Thriller"]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="predict-for-sample-user-3" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>SASRec Recommendations for User 59146:</strong></p>
+</div>
+<div id="predict-for-sample-user-4" class="cell-output cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (10, 2)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">genres</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>list[str]</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"Silence of the Lambs, The (199…</td>
+<td>["Crime", "Horror", "Thriller"]</td>
+</tr>
+<tr class="even">
+<td>"Fargo (1996)"</td>
+<td>["Comedy", "Crime", … "Thriller"]</td>
+</tr>
+<tr class="odd">
+<td>"Dr. Strangelove or: How I Lear…</td>
+<td>["Comedy", "War"]</td>
+</tr>
+<tr class="even">
+<td>"Godfather, The (1972)"</td>
+<td>["Crime", "Drama"]</td>
+</tr>
+<tr class="odd">
+<td>"Rear Window (1954)"</td>
+<td>["Mystery", "Thriller"]</td>
+</tr>
+<tr class="even">
+<td>"Casablanca (1942)"</td>
+<td>["Drama", "Romance"]</td>
+</tr>
+<tr class="odd">
+<td>"One Flew Over the Cuckoo's Nes…</td>
+<td>["Drama"]</td>
+</tr>
+<tr class="even">
+<td>"Godfather: Part II, The (1974)"</td>
+<td>["Crime", "Drama"]</td>
+</tr>
+<tr class="odd">
+<td>"Graduate, The (1967)"</td>
+<td>["Comedy", "Drama", "Romance"]</td>
+</tr>
+<tr class="even">
+<td>"American Beauty (1999)"</td>
+<td>["Drama", "Romance"]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="evaluate-model" class="level1">
+<h1>Evaluate Model</h1>
+<p>Evaluate on test set using Recall@K and NDCG@K.</p>
+<div id="cell-evaluate-model" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>model.<span class="bu">eval</span>()</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>predictions <span class="op">=</span> {}</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>sample_test_users <span class="op">=</span> <span class="bu">list</span>(test_ground_truth.keys())[:settings.eval_sample_size]  <span class="co"># Sample for speed</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> torch.no_grad():</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> uid <span class="kw">in</span> sample_test_users:</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> uid <span class="kw">not</span> <span class="kw">in</span> train_sequences:</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>        seq <span class="op">=</span> train_sequences[uid]</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Pad/truncate</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">len</span>(seq) <span class="op">&gt;</span> settings.max_sequence_length:</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>            seq <span class="op">=</span> seq[<span class="op">-</span>settings.max_sequence_length:]</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>            seq <span class="op">=</span> [<span class="dv">0</span>] <span class="op">*</span> (settings.max_sequence_length <span class="op">-</span> <span class="bu">len</span>(seq)) <span class="op">+</span> seq</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>        seq_tensor <span class="op">=</span> torch.tensor([seq], dtype<span class="op">=</span>torch.<span class="bu">long</span>).to(device)</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Predict top-20</span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>        top_items, _ <span class="op">=</span> model.predict_next(seq_tensor, k<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>        predictions[uid] <span class="op">=</span> top_items[<span class="dv">0</span>].cpu().tolist()</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate metrics</span></span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>recall_scores <span class="op">=</span> []</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>ndcg_scores <span class="op">=</span> []</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> uid <span class="kw">in</span> predictions:</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> uid <span class="kw">in</span> test_ground_truth:</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>        preds <span class="op">=</span> predictions[uid]</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>        targets <span class="op">=</span> test_ground_truth[uid]</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>        recall_scores.append(recall_at_k(preds, targets, k<span class="op">=</span>settings.eval_k))</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>        ndcg_scores.append(ndcg_at_k(preds, targets, k<span class="op">=</span>settings.eval_k))</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>eval_results <span class="op">=</span> <span class="ss">f"""</span></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a><span class="ss">**Evaluation Results:**</span></span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a><span class="ss">- Recall@</span><span class="sc">{</span>settings<span class="sc">.</span>eval_k<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>np<span class="sc">.</span>mean(recall_scores)<span class="sc">:.4f}</span></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a><span class="ss">- NDCG@</span><span class="sc">{</span>settings<span class="sc">.</span>eval_k<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>np<span class="sc">.</span>mean(ndcg_scores)<span class="sc">:.4f}</span></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>display(Markdown(eval_results))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="evaluate-model" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Evaluation Results:</strong></p>
+<ul>
+<li>Recall@10: 0.0870</li>
+<li>NDCG@10: 0.0487</li>
+</ul>
+</div>
+</div>
+<section id="results-interpretation" class="level2">
+<h2 class="anchored" data-anchor-id="results-interpretation">Results Interpretation</h2>
+<p><strong>Recall@10</strong> measures: “What fraction of relevant items appear in top-10?”</p>
+<p><strong>NDCG@10</strong> measures: “How well are relevant items ranked?” (position-aware)</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>These metrics are typically lower than MF/EASE on very sparse data, but SASRec excels when: - Users have rich interaction histories - Temporal patterns matter - Short-term intent dominates</p>
+</div>
+</div>
+</section>
+</section>
+<section id="analyze-attention-patterns" class="level1">
+<h1>Analyze Attention Patterns</h1>
+<p>Let’s visualize what the model learned!</p>
+<section id="sample-users-movie-sequence" class="level2">
+<h2 class="anchored" data-anchor-id="sample-users-movie-sequence">Sample User’s Movie Sequence</h2>
+<p>First, let’s look at the viewing history of a randomly sampled user.</p>
+<div id="sample-user-sequence" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.notebook_utils <span class="im">import</span> tmdb_images</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Sample a random user for attention visualization</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>viz_user_id <span class="op">=</span> np.random.choice(available_users)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>viz_seq <span class="op">=</span> train_sequences[viz_user_id]</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Load posters dataset</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>posters_raw <span class="op">=</span> pl.read_parquet(<span class="st">"../data/shared/posters.parquet"</span>)</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Join to get movie info with posters (via links for tmdb_id)</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>viz_movie_ids <span class="op">=</span> [idx_to_item[idx] <span class="cf">for</span> idx <span class="kw">in</span> viz_seq <span class="cf">if</span> idx <span class="op">&gt;</span> <span class="dv">0</span>]</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>viz_movies <span class="op">=</span> (</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>    pl.DataFrame({<span class="st">"movie_id"</span>: viz_movie_ids})</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    .join(movies, on<span class="op">=</span><span class="st">"movie_id"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span>)</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>    .join(links.select([<span class="st">"movie_id"</span>, <span class="st">"tmdb_id"</span>]), on<span class="op">=</span><span class="st">"movie_id"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span>)</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    .join(posters_raw, on<span class="op">=</span><span class="st">"tmdb_id"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span>)</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Display user sequence info</span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"""</span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="ss">**Sampled User ID:** </span><span class="sc">{</span>viz_user_id<span class="sc">}</span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a><span class="ss">**Sequence Length:** </span><span class="sc">{</span><span class="bu">len</span>(viz_seq)<span class="sc">}</span><span class="ss"> items</span></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a><span class="ss">**Unique Movies:** </span><span class="sc">{</span><span class="bu">len</span>(viz_movie_ids)<span class="sc">}</span><span class="ss"> (excluding padding)</span></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span>)</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>recent_movies <span class="op">=</span> viz_movies.tail(<span class="dv">20</span>)</span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Display posters for movies that have them</span></span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>poster_paths <span class="op">=</span> [p <span class="cf">for</span> p <span class="kw">in</span> recent_movies[<span class="st">"poster_path"</span>].to_list() <span class="cf">if</span> p <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span>]</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">**Movie Posters:**"</span>))</span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>display(tmdb_images(poster_paths))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="sample-user-sequence-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Sampled User ID:</strong> 124051</p>
+<p><strong>Sequence Length:</strong> 49 items</p>
+<p><strong>Unique Movies:</strong> 49 (excluding padding)</p>
+</div>
+<div id="sample-user-sequence-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Movie Posters:</strong></p>
+</div>
+<div id="sample-user-sequence-3" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/iYNH3Re0JSypoYaWvZtERUnNaJL.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/tgNjemQPG96uIezpiUiXFcer5ga.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/92BZIFPbyCPNhExyFScxA3xF1dy.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/7RvBQOTZGhCoPvLiF3Ugp2Q94Ux.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/OPoiGrzNr5FWoczXH5Gs1cReec.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/abmxGiCV04NQj4jngbSQTGLgiC1.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/udpZ1HTMNPS9fi4s6PNY2QLIJqf.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/m7AIITQ624sfldI4SsX4htXPH1f.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/4gI4KKmoi0d3yfsF71YU3S0I5t8.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/aqNZWM9bspt8zaDvVRIRiWxRVJ7.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/yvwF7dfSCybFcBOklUzKpE46bHM.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/hbkS4UpgHcGhLlGy9YCX4WIJ4lu.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/kZRSP3FmOcq0xnBulqpUQngJUXY.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/rUSjbyvYWN9H4az8xt0tDtU7I6v.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/pVNKXVQFukBaCz6ML7GH3kiPlQP.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/d557IKXSWFgWMi5dAlqhLy0fj5L.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/sav0jxhqiH0bPr2vZFU0Kjt2nZL.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/wcUmMtipWBBx7lpsfpPsUM4Snh1.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/xXxuJPNUDZ0vjsAXca0O5p3leVB.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/9LKAXq3FztoUbsTR52Fmkzoqao2.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="extract-attention-weights" class="level2">
+<h2 class="anchored" data-anchor-id="extract-attention-weights">Extract Attention Weights</h2>
+<p>Now let’s extract attention weights from the model for this user’s sequence.</p>
+<div id="extract-attention-weights" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">len</span>(viz_seq) <span class="op">&gt;</span> <span class="dv">20</span>:</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    viz_seq <span class="op">=</span> viz_seq[<span class="op">-</span><span class="dv">20</span>:]  <span class="co"># Use last 20 for visualization</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>seq_padded <span class="op">=</span> [<span class="dv">0</span>] <span class="op">*</span> (<span class="dv">20</span> <span class="op">-</span> <span class="bu">len</span>(viz_seq)) <span class="op">+</span> viz_seq</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>seq_tensor <span class="op">=</span> torch.tensor([seq_padded], dtype<span class="op">=</span>torch.<span class="bu">long</span>).to(device)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>model.<span class="bu">eval</span>()</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> torch.no_grad():</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    _, attn_weights_list <span class="op">=</span> model.forward_with_attention(seq_tensor)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Get movie titles for labels</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>movie_ids <span class="op">=</span> [idx_to_item[idx] <span class="cf">for</span> idx <span class="kw">in</span> seq_padded]</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>valid_ids <span class="op">=</span> [mid <span class="cf">for</span> mid <span class="kw">in</span> movie_ids <span class="cf">if</span> mid <span class="op">&gt;</span> <span class="dv">0</span>]</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> valid_ids:</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    movie_titles <span class="op">=</span> movies.<span class="bu">filter</span>(pl.col(<span class="st">"movie_id"</span>).is_in(valid_ids))</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>    title_map <span class="op">=</span> {row[<span class="st">"movie_id"</span>]: row[<span class="st">"title"</span>][:<span class="dv">20</span>] <span class="cf">for</span> row <span class="kw">in</span> movie_titles.to_dicts()}</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>    labels <span class="op">=</span> [title_map.get(mid, <span class="st">"PAD"</span>) <span class="cf">for</span> mid <span class="kw">in</span> movie_ids]</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>    labels <span class="op">=</span> [<span class="st">"PAD"</span> <span class="cf">if</span> mid <span class="op">==</span> <span class="dv">0</span> <span class="cf">else</span> <span class="bu">str</span>(mid) <span class="cf">for</span> mid <span class="kw">in</span> movie_ids]</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot attention weights from all blocks and all heads</span></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> block_idx, block_attn <span class="kw">in</span> <span class="bu">enumerate</span>(attn_weights_list):</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># block_attn shape: (batch_size, num_heads, seq_len, seq_len)</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    num_heads <span class="op">=</span> block_attn.shape[<span class="dv">1</span>]</span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>    display(Markdown(<span class="ss">f"---</span><span class="ch">\n</span><span class="ss">## Block </span><span class="sc">{</span>block_idx <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ch">\n</span><span class="ss">---"</span>))</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> head_idx <span class="kw">in</span> <span class="bu">range</span>(num_heads):</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>        attn_matrix <span class="op">=</span> block_attn[<span class="dv">0</span>, head_idx].cpu().numpy()  <span class="co"># First sample, specific head</span></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Prepare data for plotnine</span></span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>        attn_data <span class="op">=</span> []</span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(attn_matrix.shape[<span class="dv">0</span>]):</span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(attn_matrix.shape[<span class="dv">1</span>]):</span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a>                attn_data.append({<span class="st">"query_pos"</span>: i, <span class="st">"key_pos"</span>: j, <span class="st">"attention"</span>: attn_matrix[i, j]})</span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a>        attn_df <span class="op">=</span> pl.DataFrame(attn_data)</span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Create heatmap with plotnine</span></span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a>        plot <span class="op">=</span> (</span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a>            ggplot(attn_df, aes(x<span class="op">=</span><span class="st">"key_pos"</span>, y<span class="op">=</span><span class="st">"query_pos"</span>, fill<span class="op">=</span><span class="st">"attention"</span>))</span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> geom_tile()</span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> scale_fill_gradient(low<span class="op">=</span><span class="st">"#440154"</span>, high<span class="op">=</span><span class="st">"#FDE724"</span>, name<span class="op">=</span><span class="st">"Attention</span><span class="ch">\n</span><span class="st">Weight"</span>)</span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> scale_x_continuous(breaks<span class="op">=</span><span class="bu">list</span>(<span class="bu">range</span>(<span class="dv">20</span>)), labels<span class="op">=</span>labels)</span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> scale_y_reverse(breaks<span class="op">=</span><span class="bu">list</span>(<span class="bu">range</span>(<span class="dv">20</span>)), labels<span class="op">=</span>labels)</span>
+<span id="cb18-47"><a href="#cb18-47" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> labs(</span>
+<span id="cb18-48"><a href="#cb18-48" aria-hidden="true" tabindex="-1"></a>                title<span class="op">=</span><span class="ss">f"Block </span><span class="sc">{</span>block_idx <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">, Head </span><span class="sc">{</span>head_idx <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss"> - User </span><span class="sc">{</span>viz_user_id<span class="sc">}</span><span class="ss">"</span>,</span>
+<span id="cb18-49"><a href="#cb18-49" aria-hidden="true" tabindex="-1"></a>                x<span class="op">=</span><span class="st">"Key Position"</span>,</span>
+<span id="cb18-50"><a href="#cb18-50" aria-hidden="true" tabindex="-1"></a>                y<span class="op">=</span><span class="st">"Query Position"</span>,</span>
+<span id="cb18-51"><a href="#cb18-51" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb18-52"><a href="#cb18-52" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> theme(</span>
+<span id="cb18-53"><a href="#cb18-53" aria-hidden="true" tabindex="-1"></a>                axis_text_x<span class="op">=</span>element_text(rotation<span class="op">=</span><span class="dv">90</span>, hjust<span class="op">=</span><span class="dv">1</span>, size<span class="op">=</span><span class="dv">8</span>),</span>
+<span id="cb18-54"><a href="#cb18-54" aria-hidden="true" tabindex="-1"></a>                axis_text_y<span class="op">=</span>element_text(size<span class="op">=</span><span class="dv">8</span>),</span>
+<span id="cb18-55"><a href="#cb18-55" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb18-56"><a href="#cb18-56" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb18-57"><a href="#cb18-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-58"><a href="#cb18-58" aria-hidden="true" tabindex="-1"></a>        display(plot)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="extract-attention-weights-1" class="cell-output cell-output-display cell-output-markdown">
+
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-2.png" id="extract-attention-weights-2" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-3.png" id="extract-attention-weights-3" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-4.png" id="extract-attention-weights-4" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-5.png" id="extract-attention-weights-5" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="extract-attention-weights-6" class="cell-output cell-output-display cell-output-markdown">
+
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-7.png" id="extract-attention-weights-7" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-8.png" id="extract-attention-weights-8" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-9.png" id="extract-attention-weights-9" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-10.png" id="extract-attention-weights-10" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="extract-attention-weights-11" class="cell-output cell-output-display cell-output-markdown">
+
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-12.png" id="extract-attention-weights-12" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-13.png" id="extract-attention-weights-13" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-14.png" id="extract-attention-weights-14" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="02_sasrec_files/figure-html/extract-attention-weights-output-15.png" id="extract-attention-weights-15" width="768" height="576" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>Interpretation</strong>:</p>
+<ul>
+<li>Brighter cells = stronger attention</li>
+<li>Each row shows what a query position attends to</li>
+<li>Causal mask enforces no future peeking</li>
+</ul>
+</section>
+</section>
+<section id="key-takeaways" class="level1">
+<h1>Key Takeaways</h1>
+<ol type="1">
+<li><strong>SASRec models temporal dynamics</strong> - Order matters!</li>
+<li><strong>Self-attention</strong> learns which past items are relevant for prediction</li>
+<li><strong>Causal masking</strong> ensures no future leakage during training</li>
+</ol>
+<p><strong>Connection to LLMs</strong>: SASRec uses the same transformer architecture as GPT!</p>
+<ul>
+<li>GPT predicts next <strong>word</strong></li>
+<li>SASRec predicts next <strong>item</strong></li>
+<li>Both use causal self-attention</li>
+</ul>
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
+<div id="ref-kang2018self" class="csl-entry" role="listitem">
+Kang, W.-C., &amp; McAuley, J. (2018). Self-attentive sequential recommendation. <em>2018 IEEE International Conference on Data Mining (ICDM)</em>, 197–206. <a href="https://doi.org/10.1109/ICDM.2018.00035">https://doi.org/10.1109/ICDM.2018.00035</a>
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>ML Prague 2026 Workshop</p>
+</div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/jankislinger/recsys-genai">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

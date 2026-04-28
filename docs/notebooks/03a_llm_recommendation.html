@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Part III.a: LLMs for Recommendation – RecSys GenAI Workshop</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../assets/favicon.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-5316630253f2b0b36f77cd4e7e737bf8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">RecSys GenAI Workshop</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-slides" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Slides</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-slides">    
+        <li>
+    <a class="dropdown-item" href="../slides/00_introduction.html">
+ <span class="dropdown-text">Introduction</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/01a_foundations.html">
+ <span class="dropdown-text">I.a: Foundations</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/01b_ease.html">
+ <span class="dropdown-text">I.b: EASE</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/02a_transformer_architecture.html">
+ <span class="dropdown-text">II.a: Transformer Architecture</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/02b_transformer_recommendation.html">
+ <span class="dropdown-text">II.b: Transformers &amp; SASRec</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/04a_reranking.html">
+ <span class="dropdown-text">IV.a: Reranking &amp; Slate Optimization</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../slides/04b_generative_pages.html">
+ <span class="dropdown-text">IV.b: Generative Pages</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../slides/07_wrapup.html">
+ <span class="dropdown-text">Wrap-up</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-notebooks" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Notebooks</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-notebooks">    
+        <li>
+    <a class="dropdown-item" href="../notebooks/01a_movielens.html">
+ <span class="dropdown-text">I.a: MovieLens Dataset</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/01b_ease.html">
+ <span class="dropdown-text">I.b: EASE</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/02_sasrec.html">
+ <span class="dropdown-text">II: SASRec</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/03a_llm_recommendation.html">
+ <span class="dropdown-text">III.a: LLMs for Recommendation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/03b_conversational_recommendation.html">
+ <span class="dropdown-text">III.b: Conversational Recommendation</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../notebooks/04a_slate_generation.html">
+ <span class="dropdown-text">IV.a: Slate Generation</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../references.html"> 
+<span class="menu-text">References</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jankislinger/recsys-genai"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#the-cold-start-problem" id="toc-the-cold-start-problem" class="nav-link" data-scroll-target="#the-cold-start-problem">The Cold-Start Problem</a>
+  <ul class="collapse">
+  <li><a href="#example-new-movie-arrives" id="toc-example-new-movie-arrives" class="nav-link" data-scroll-target="#example-new-movie-arrives">Example: New Movie Arrives</a></li>
+  </ul></li>
+  <li><a href="#zero-shot-recommendation-with-llms" id="toc-zero-shot-recommendation-with-llms" class="nav-link" data-scroll-target="#zero-shot-recommendation-with-llms">Zero-Shot Recommendation with LLMs</a>
+  <ul class="collapse">
+  <li><a href="#approach-1-prompt-based-ranking" id="toc-approach-1-prompt-based-ranking" class="nav-link" data-scroll-target="#approach-1-prompt-based-ranking">Approach 1: Prompt-Based Ranking</a></li>
+  <li><a href="#approach-2-embedding-based-similarity" id="toc-approach-2-embedding-based-similarity" class="nav-link" data-scroll-target="#approach-2-embedding-based-similarity">Approach 2: Embedding-Based Similarity</a>
+  <ul class="collapse">
+  <li><a href="#llm-embeddings-with-ollama" id="toc-llm-embeddings-with-ollama" class="nav-link" data-scroll-target="#llm-embeddings-with-ollama">LLM Embeddings with Ollama</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#metadata-generation" id="toc-metadata-generation" class="nav-link" data-scroll-target="#metadata-generation">Metadata Generation</a>
+  <ul class="collapse">
+  <li><a href="#example-prompt-for-metadata-generation" id="toc-example-prompt-for-metadata-generation" class="nav-link" data-scroll-target="#example-prompt-for-metadata-generation">Example Prompt for Metadata Generation</a></li>
+  <li><a href="#batch-metadata-generation" id="toc-batch-metadata-generation" class="nav-link" data-scroll-target="#batch-metadata-generation">Batch Metadata Generation</a>
+  <ul class="collapse">
+  <li><a href="#define-descriptive-dimensions" id="toc-define-descriptive-dimensions" class="nav-link" data-scroll-target="#define-descriptive-dimensions">Define Descriptive Dimensions</a></li>
+  <li><a href="#embed-each-dimension" id="toc-embed-each-dimension" class="nav-link" data-scroll-target="#embed-each-dimension">Embed Each Dimension</a></li>
+  <li><a href="#sort-by-semantic-similarity" id="toc-sort-by-semantic-similarity" class="nav-link" data-scroll-target="#sort-by-semantic-similarity">Sort by Semantic Similarity</a></li>
+  <li><a href="#visual-comparison-three-dimensions-of-similarity" id="toc-visual-comparison-three-dimensions-of-similarity" class="nav-link" data-scroll-target="#visual-comparison-three-dimensions-of-similarity">Visual Comparison: Three Dimensions of Similarity</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#true-cold-start-unknown-content" id="toc-true-cold-start-unknown-content" class="nav-link" data-scroll-target="#true-cold-start-unknown-content">True Cold Start: Unknown Content</a>
+  <ul class="collapse">
+  <li><a href="#the-cold-start-spectrum" id="toc-the-cold-start-spectrum" class="nav-link" data-scroll-target="#the-cold-start-spectrum">The Cold Start Spectrum</a></li>
+  <li><a href="#example-short-form-video" id="toc-example-short-form-video" class="nav-link" data-scroll-target="#example-short-form-video">Example: Short-Form Video</a></li>
+  <li><a href="#generate-video-description" id="toc-generate-video-description" class="nav-link" data-scroll-target="#generate-video-description">Generate Video Description</a></li>
+  <li><a href="#generate-metadata-for-unknown-content" id="toc-generate-metadata-for-unknown-content" class="nav-link" data-scroll-target="#generate-metadata-for-unknown-content">Generate Metadata for Unknown Content</a></li>
+  <li><a href="#find-similar-movies" id="toc-find-similar-movies" class="nav-link" data-scroll-target="#find-similar-movies">Find Similar Movies</a></li>
+  </ul></li>
+  <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Part III.a: LLMs for Recommendation</h1>
+<p class="subtitle lead">Zero-Shot Recommendation and Metadata Generation</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>This notebook explores how Large Language Models can enhance recommendation systems:</p>
+<ul>
+<li><strong>Cold-Start Problem</strong>: Recommend new items without interaction data</li>
+<li><strong>Zero-Shot Recommendation</strong>: Use LLM knowledge to suggest items</li>
+<li><strong>Metadata Generation</strong>: Enrich item catalogs with LLM-generated descriptions</li>
+<li><strong>Semantic Search</strong>: Embed items and queries in shared space</li>
+</ul>
+<p><strong>Key Papers:</strong></p>
+<ul>
+<li><span class="citation" data-cites="geng2022recommendation">Geng et al. (<a href="#ref-geng2022recommendation" role="doc-biblioref">2022</a>)</span> introduced P5, treating recommendation as language processing</li>
+<li><span class="citation" data-cites="zhang2023collaborative"><span class="nocase">Zhang et al.</span> (<a href="#ref-zhang2023collaborative" role="doc-biblioref">2023</a>)</span> developed collaborative approaches for LLM-based recommendation</li>
+<li><span class="citation" data-cites="hou2023large">Hou et al. (<a href="#ref-hou2023large" role="doc-biblioref">2023</a>)</span> demonstrated LLMs as zero-shot rankers for recommender systems</li>
+</ul>
+<div id="imports" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> itertools</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> Markdown, display</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotnine <span class="im">import</span> <span class="op">*</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics.pairwise <span class="im">import</span> cosine_similarity</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.data_utils <span class="im">import</span> load_movielens</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.llm_utils <span class="im">import</span> (</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    check_ollama_available,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    ollama_embed,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    ollama_generate,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    ollama_generate_json,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    retry,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> recsys_genai.notebook_utils <span class="im">import</span> (</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    ollama_model_link,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    show_prompt,</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    show_response,</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    tmdb_images,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="cell-setup" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>theme_set(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    theme_minimal()</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> theme(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        plot_title<span class="op">=</span>element_text(weight<span class="op">=</span><span class="st">"bold"</span>, size<span class="op">=</span><span class="dv">14</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        axis_title<span class="op">=</span>element_text(size<span class="op">=</span><span class="dv">12</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        figure_size<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>pl.Config(</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    fmt_str_lengths<span class="op">=</span><span class="dv">50</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    tbl_rows<span class="op">=</span><span class="dv">20</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>LLM_MODEL <span class="op">=</span> os.getenv(<span class="st">"LLM_MODEL"</span>, <span class="st">"ministral-3:3b"</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>EMBED_MODEL <span class="op">=</span> os.getenv(<span class="st">"EMBED_MODEL"</span>, <span class="st">"nomic-embed-text-v2-moe"</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    Markdown(</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"""</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="ss">**Selected models:**</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="ss">- Generative: </span><span class="sc">{</span>ollama_model_link(LLM_MODEL)<span class="sc">}</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="ss">- Embedding: </span><span class="sc">{</span>ollama_model_link(EMBED_MODEL)<span class="sc">}</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="setup" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Selected models:</strong></p>
+<ul>
+<li>Generative: <a href="https://ollama.com/library/ministral-3">ministral-3:14b 🔗</a></li>
+<li>Embedding: <a href="https://ollama.com/library/nomic-embed-text-v2-moe">nomic-embed-text-v2-moe 🔗</a></li>
+</ul>
+</div>
+</div>
+<div id="load-data" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>movies, ratings, tags, links <span class="op">=</span> load_movielens(<span class="st">"../data"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="the-cold-start-problem" class="level1">
+<h1>The Cold-Start Problem</h1>
+<p><strong>Challenge</strong>: How do we recommend a <strong>brand new movie</strong> that no one has rated yet?</p>
+<p>Traditional CF methods fail: no interactions → no embeddings!</p>
+<section id="example-new-movie-arrives" class="level2">
+<h2 class="anchored" data-anchor-id="example-new-movie-arrives">Example: New Movie Arrives</h2>
+<div id="cold-start-example" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate a new movie with only metadata</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>new_movie <span class="op">=</span> {</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"movie_id"</span>: <span class="dv">999999</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"title"</span>: <span class="st">"Elemental (2023)"</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"genres"</span>: [<span class="st">"Animation"</span>, <span class="st">"Comedy"</span>, <span class="st">"Fantasy"</span>],</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"description"</span>: (</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"In a city where fire, water, land and air residents live together, "</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"a fiery young woman and a go-with-the-flow guy discover something "</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"elemental: how much they actually have in common."</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"**New Movie:**"</span>))</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k, v <span class="kw">in</span> new_movie.items():</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    display(Markdown(<span class="ss">f"- **</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">**: </span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="cold-start-example-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>New Movie:</strong></p>
+</div>
+<div id="cold-start-example-2" class="cell-output cell-output-display cell-output-markdown">
+<ul>
+<li><strong>movie_id</strong>: 999999</li>
+</ul>
+</div>
+<div id="cold-start-example-3" class="cell-output cell-output-display cell-output-markdown">
+<ul>
+<li><strong>title</strong>: Elemental (2023)</li>
+</ul>
+</div>
+<div id="cold-start-example-4" class="cell-output cell-output-display cell-output-markdown">
+<ul>
+<li><strong>genres</strong>: [‘Animation’, ‘Comedy’, ‘Fantasy’]</li>
+</ul>
+</div>
+<div id="cold-start-example-5" class="cell-output cell-output-display cell-output-markdown">
+<ul>
+<li><strong>description</strong>: In a city where fire, water, land and air residents live together, a fiery young woman and a go-with-the-flow guy discover something elemental: how much they actually have in common.</li>
+</ul>
+</div>
+</div>
+<p><strong>Question</strong>: Who should we recommend this to?</p>
+<p><strong>Traditional answer</strong>: Wait for users to rate it → cold start lag!</p>
+<p><strong>LLM answer</strong>: Use semantic understanding of genres and description!</p>
+</section>
+</section>
+<section id="zero-shot-recommendation-with-llms" class="level1">
+<h1>Zero-Shot Recommendation with LLMs</h1>
+<section id="approach-1-prompt-based-ranking" class="level2">
+<h2 class="anchored" data-anchor-id="approach-1-prompt-based-ranking">Approach 1: Prompt-Based Ranking</h2>
+<p>We can ask an LLM to rank items based on user preferences!</p>
+<div id="prompt-based-ranking" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the ranking prompt</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ranking_prompt <span class="op">=</span> <span class="st">"""You are a movie recommendation expert.</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="st">User Profile:</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="st">- Loved: Toy Story, Finding Nemo, Up, Inside Out</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="st">- Preferred genres: Animation, Family, Comedy</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="st">New Movies to Consider:</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="st">- The Drama (2026) - Romance</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="st">- War Machine (2026) - Action, Sci-fi</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="st">- Ice Age: Boiling Point (2026) - Animation, Adventure, Comedy</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="st">Task: Rank these movies for this user (1 = best match).</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="st">Output format:</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="st">1. [Movie Title] - [Reason]</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="st">2. [Movie Title] - [Reason]</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="st">3. [Movie Title] - [Reason]</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>display(show_prompt(ranking_prompt))</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Call the LLM</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>llm_ranking_response <span class="op">=</span> ollama_generate(</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    ranking_prompt,</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>LLM_MODEL,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"**LLM Ranking Response:**"</span>))</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>show_response(llm_ranking_response)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="prompt-based-ranking-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Prompt:</strong></p>
+<pre class="prompt"><code>You are a movie recommendation expert.
+
+User Profile:
+- Loved: Toy Story, Finding Nemo, Up, Inside Out
+- Preferred genres: Animation, Family, Comedy
+
+New Movies to Consider:
+- The Drama (2026) - Romance
+- War Machine (2026) - Action, Sci-fi
+- Ice Age: Boiling Point (2026) - Animation, Adventure, Comedy
+
+Task: Rank these movies for this user (1 = best match).
+
+Output format:
+1. [Movie Title] - [Reason]
+2. [Movie Title] - [Reason]
+3. [Movie Title] - [Reason]
+</code></pre>
+</div>
+<div id="prompt-based-ranking-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>LLM Ranking Response:</strong></p>
+</div>
+<div id="prompt-based-ranking-3" class="cell-output cell-output-display cell-output-markdown" data-execution_count="5">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>1. **Ice Age: Boiling Point (2026)** - **Animation, Adventure, Comedy**
+   - *Reason*: This is the **best match** for your profile! Given your love for *Toy Story*, *Up*, and *Inside Out*—all beloved animated films with heart, humor, and adventure—this sequel fits perfectly. The *Ice Age* series has always balanced comedy, family-friendly storytelling, and dynamic animation, making it a strong contender.
+
+2. **The Drama (2026)** - **Romance**
+   - *Reason*: While this isn’t a clear fit for your preferred genres (animation, family, comedy), it could still appeal to you if you enjoy emotionally engaging stories with lighthearted or whimsical elements. Romance films like *Beauty and the Beast* (animated) or *The Princess Bride* (family-friendly adventure) might share some thematic overlap. However, since it lacks animation or comedy, it ranks lower.
+
+3. **War Machine (2026)** - **Action, Sci-fi**
+   - *Reason*: This is the **least aligned** with your profile. While it might have comedic elements or action-adventure appeal, it’s not animated or family-oriented, and its genre leans heavily toward mature themes. Unless you’re open to trying something outside your usual preferences, this wouldn’t be a top recommendation.</code></pre>
+</div>
+</div>
+<div id="prompt-based-ranking-json" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the ranking prompt</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ranking_prompt <span class="op">=</span> <span class="st">"""You are a movie recommendation expert.</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="st">User Profile:</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="st">- Loved: Toy Story, Finding Nemo, Up, Inside Out</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="st">- Preferred genres: Animation, Family, Comedy</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="st">New Movies to Consider:</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="st">- The Drama (2026) - Romance</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="st">- War Machine (2026) - Action, Sci-fi</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="st">- Ice Age: Boiling Point (2026) - Animation, Adventure, Comedy</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="st">Task: Rank these movies for this user (1 = best match).</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="st">Output format:</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="st">[</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="st">    {"rank": 1, "title": "[Movie Title]", "reason": "[Reason]"},</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="st">    {"rank": 2, "title": "[Movie Title]", "reason": "[Reason]"},</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="st">    {"rank": 3, "title": "[Movie Title]", "reason": "[Reason]"}</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="st">]</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>display(show_prompt(ranking_prompt))</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Call the LLM</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>llm_ranking_response <span class="op">=</span> ollama_generate_json(</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    ranking_prompt,</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>LLM_MODEL,</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>show_response(llm_ranking_response)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="prompt-based-ranking-json-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Prompt:</strong></p>
+<pre class="prompt"><code>You are a movie recommendation expert.
+
+User Profile:
+- Loved: Toy Story, Finding Nemo, Up, Inside Out
+- Preferred genres: Animation, Family, Comedy
+
+New Movies to Consider:
+- The Drama (2026) - Romance
+- War Machine (2026) - Action, Sci-fi
+- Ice Age: Boiling Point (2026) - Animation, Adventure, Comedy
+
+Task: Rank these movies for this user (1 = best match).
+
+Output format:
+[
+    {"rank": 1, "title": "[Movie Title]", "reason": "[Reason]"},
+    {"rank": 2, "title": "[Movie Title]", "reason": "[Reason]"},
+    {"rank": 3, "title": "[Movie Title]", "reason": "[Reason]"}
+]
+</code></pre>
+</div>
+<div id="prompt-based-ranking-json-2" class="cell-output cell-output-display cell-output-markdown" data-execution_count="6">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>[
+  {
+    "rank": 1,
+    "title": "Ice Age: Boiling Point (2026)",
+    "reason": "Perfect match for the user's profile! It's an **animation** film with **adventure** and **comedy** elements\u2014aligning closely with their love for *Toy Story*, *Finding Nemo*, and *Up*. The franchise\u2019s humor and heartwarming family dynamics are likely to resonate strongly."
+  },
+  {
+    "rank": 2,
+    "title": "The Drama (2026)",
+    "reason": "While not a direct match for their preferred genres, the user\u2019s profile suggests they enjoy **emotional, character-driven stories** (e.g., *Up*, *Inside Out*). If *The Drama* leans into **lighthearted romance** with comedic or family-friendly undertones, it could be a fun departure. However, without confirmation of its tone, it\u2019s riskier than *Ice Age*."
+  },
+  {
+    "rank": 3,
+    "title": "War Machine (2026)",
+    "reason": "Doesn\u2019t align with the user\u2019s preferences at all. **Action/Sci-fi** lacks the **animation**, **family-friendly**, or **comedy** focus they enjoy. Even if it has humor, it\u2019s unlikely to appeal given their profile."
+  }
+]</code></pre>
+</div>
+</div>
+<p><strong>Key Insight</strong>: LLM leverages <strong>semantic understanding</strong> of genres, themes, and patterns!</p>
+</section>
+<section id="approach-2-embedding-based-similarity" class="level2">
+<h2 class="anchored" data-anchor-id="approach-2-embedding-based-similarity">Approach 2: Embedding-Based Similarity</h2>
+<p>Modern LLMs can embed text into dense vectors. We can:</p>
+<ol type="1">
+<li>Embed movie descriptions with LLM</li>
+<li>Embed user preference descriptions</li>
+<li>Compute cosine similarity</li>
+</ol>
+<section id="llm-embeddings-with-ollama" class="level3">
+<h3 class="anchored" data-anchor-id="llm-embeddings-with-ollama">LLM Embeddings with Ollama</h3>
+<div id="cell-embedding-similarity" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Select favorite movies</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>alice_id <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>alice_favorites <span class="op">=</span> (</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    ratings.<span class="bu">filter</span>(pl.col(<span class="st">"user_id"</span>) <span class="op">==</span> alice_id)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    .top_k(<span class="dv">10</span>, by<span class="op">=</span><span class="st">"rating"</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    .join(movies, on<span class="op">=</span><span class="st">"movie_id"</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    .select(<span class="st">"movie_id"</span>, <span class="st">"title"</span>, <span class="st">"genres"</span>)</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>alice_favorites</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="embedding-similarity" class="cell-output cell-output-display" data-execution_count="7">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (10, 3)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">movie_id</th>
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">genres</th>
+</tr>
+<tr class="even">
+<td>i64</td>
+<td>str</td>
+<td>list[str]</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>356</td>
+<td>"Forrest Gump (1994)"</td>
+<td>["Comedy", "Drama", … "War"]</td>
+</tr>
+<tr class="even">
+<td>1036</td>
+<td>"Die Hard (1988)"</td>
+<td>["Action", "Crime", "Thriller"]</td>
+</tr>
+<tr class="odd">
+<td>1291</td>
+<td>"Indiana Jones and the Last Crusade (1989)"</td>
+<td>["Action", "Adventure"]</td>
+</tr>
+<tr class="even">
+<td>2028</td>
+<td>"Saving Private Ryan (1998)"</td>
+<td>["Action", "Drama", "War"]</td>
+</tr>
+<tr class="odd">
+<td>2762</td>
+<td>"Sixth Sense, The (1999)"</td>
+<td>["Drama", "Horror", "Mystery"]</td>
+</tr>
+<tr class="even">
+<td>3578</td>
+<td>"Gladiator (2000)"</td>
+<td>["Action", "Adventure", "Drama"]</td>
+</tr>
+<tr class="odd">
+<td>4886</td>
+<td>"Monsters, Inc. (2001)"</td>
+<td>["Adventure", "Animation", … "Fantasy"]</td>
+</tr>
+<tr class="even">
+<td>4995</td>
+<td>"Beautiful Mind, A (2001)"</td>
+<td>["Drama", "Romance"]</td>
+</tr>
+<tr class="odd">
+<td>7153</td>
+<td>"Lord of the Rings: The Return of the King, The (20…</td>
+<td>["Action", "Adventure", … "Fantasy"]</td>
+</tr>
+<tr class="even">
+<td>52458</td>
+<td>"Disturbia (2007)"</td>
+<td>["Drama", "Thriller"]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="display-alice-posters" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load posters</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>posters <span class="op">=</span> pl.read_parquet(<span class="st">"../data/shared/posters.parquet"</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Get poster paths for Alice's favorites (join via links to get tmdb_id)</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>alice_with_posters <span class="op">=</span> alice_favorites.join(</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    links.select([<span class="st">"movie_id"</span>, <span class="st">"tmdb_id"</span>]), on<span class="op">=</span><span class="st">"movie_id"</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>).join(posters, on<span class="op">=</span><span class="st">"tmdb_id"</span>, how<span class="op">=</span><span class="st">"inner"</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>poster_paths <span class="op">=</span> alice_with_posters[<span class="st">"poster_path"</span>].to_list()</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Alice's Favorite Movies**:"</span>))</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>tmdb_images(poster_paths)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-alice-posters-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Alice’s Favorite Movies</strong>:</p>
+</div>
+<div id="display-alice-posters-2" class="cell-output cell-output-display cell-output-markdown" data-execution_count="8">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/je3sZZpcfPeiR4eIqBKbxomOw6d.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/rEIg5yJdNOt9fmX4P8gU9LeNoTQ.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/vOyfUXNFSnaTk7Vk5AjpsKTUWsu.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/saHP97rTPS5eLmrLQEcANmKrsFl.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/wFSpyMsp7H0ttERbxY7Trlv8xry.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/aJCpHDC6RoGz7d1Fzayl019xnxX.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/uqx37cS8cpHg8U35f9U5IBlrCV3.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/sizg1AU8f8JDZX4QIgE4pjUMBvx.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/ty8TGRuvJLPUmAR1H1nRIsgwvim.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="cell-build-user-profile" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build text representations</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>movie_texts <span class="op">=</span> movies.with_columns(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    text<span class="op">=</span>pl.<span class="bu">format</span>(<span class="st">"</span><span class="sc">{}</span><span class="st">: </span><span class="sc">{}</span><span class="st">"</span>, <span class="st">"title"</span>, pl.col(<span class="st">"genres"</span>).<span class="bu">list</span>.join(<span class="st">", "</span>))</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co"># User profile: concatenate favorite movie texts</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>alice_fav_ids <span class="op">=</span> ratings.<span class="bu">filter</span>((pl.col(<span class="st">"user_id"</span>) <span class="op">==</span> alice_id) <span class="op">&amp;</span> (pl.col(<span class="st">"rating"</span>) <span class="op">&gt;=</span> <span class="fl">4.5</span>))[</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"movie_id"</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>].to_list()</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>alice_profile_texts <span class="op">=</span> movie_texts.join(alice_favorites, on<span class="op">=</span><span class="st">"movie_id"</span>, how<span class="op">=</span><span class="st">"semi"</span>)[<span class="st">"text"</span>].to_list()</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>alice_profile <span class="op">=</span> <span class="st">"</span><span class="ch">\n</span><span class="st">"</span>.join(alice_profile_texts)  <span class="co"># Use first 5 to keep it concise</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Alice's Profile:**</span><span class="ch">\n\n</span><span class="sc">{</span>alice_profile<span class="sc">}</span><span class="ss">"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="build-user-profile" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Alice’s Profile:</strong></p>
+<p>Forrest Gump (1994): Comedy, Drama, Romance, War Die Hard (1988): Action, Crime, Thriller Indiana Jones and the Last Crusade (1989): Action, Adventure Saving Private Ryan (1998): Action, Drama, War Sixth Sense, The (1999): Drama, Horror, Mystery Gladiator (2000): Action, Adventure, Drama Monsters, Inc.&nbsp;(2001): Adventure, Animation, Children, Comedy, Fantasy Beautiful Mind, A (2001): Drama, Romance Lord of the Rings: The Return of the King, The (2003): Action, Adventure, Drama, Fantasy Disturbia (2007): Drama, Thriller</p>
+</div>
+</div>
+<div id="select-most-rated-movies" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get list of most rated movies</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># This ensures that the demo has familiar movies</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>most_rated_movies <span class="op">=</span> ratings.group_by(<span class="st">"movie_id"</span>).<span class="bu">len</span>(<span class="st">"num_ratings"</span>).top_k(<span class="dv">500</span>, by<span class="op">=</span><span class="st">"num_ratings"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="embed-candidates" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exclude movies Alice has already rated</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>candidate_sample <span class="op">=</span> movie_texts.join(most_rated_movies, on<span class="op">=</span><span class="st">"movie_id"</span>, how<span class="op">=</span><span class="st">"semi"</span>).join(</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    alice_favorites, on<span class="op">=</span><span class="st">"movie_id"</span>, how<span class="op">=</span><span class="st">"anti"</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>candidate_texts <span class="op">=</span> candidate_sample[<span class="st">"text"</span>].to_list()</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>candidate_ids <span class="op">=</span> candidate_sample[<span class="st">"movie_id"</span>].to_list()</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Embed user profile</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>user_embedding <span class="op">=</span> ollama_embed(alice_profile, model<span class="op">=</span>EMBED_MODEL)</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Embed movies in batches for efficiency</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">50</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>movie_embeddings <span class="op">=</span> []</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> batch <span class="kw">in</span> itertools.batched(candidate_texts, batch_size):</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    batch_embeddings <span class="op">=</span> ollama_embed(batch, model<span class="op">=</span>EMBED_MODEL)</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    movie_embeddings.extend(batch_embeddings)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="cell-compute-embedding-similarities" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert to numpy arrays</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>user_vec <span class="op">=</span> np.array(user_embedding).reshape(<span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>item_vecs <span class="op">=</span> np.array(movie_embeddings)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute similarities</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>similarities <span class="op">=</span> cosine_similarity(user_vec, item_vecs)[<span class="dv">0</span>]</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">(augment): display shapes as human readable (use markdown)</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>user_vec.shape, item_vecs.shape, similarities.shape</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="compute-embedding-similarities" class="cell-output cell-output-display" data-execution_count="12">
+<pre><code>((1, 768), (491, 768), (491,))</code></pre>
+</div>
+</div>
+<div id="display-embedding-recommendations" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Top-10 recommendations</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"**LLM Embedding-Based Recommendations:**"</span>))</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>top_movies_llm <span class="op">=</span> (</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    pl.DataFrame({<span class="st">"movie_id"</span>: candidate_ids, <span class="st">"similarity"</span>: similarities})</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    .join(movies, on<span class="op">=</span><span class="st">"movie_id"</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    .top_k(<span class="dv">10</span>, by<span class="op">=</span><span class="st">"similarity"</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>top_movies_llm</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-embedding-recommendations-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>LLM Embedding-Based Recommendations:</strong></p>
+</div>
+<div id="display-embedding-recommendations-2" class="cell-output cell-output-display" data-execution_count="13">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (10, 4)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">movie_id</th>
+<th data-quarto-table-cell-role="th">similarity</th>
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">genres</th>
+</tr>
+<tr class="even">
+<td>i64</td>
+<td>f64</td>
+<td>str</td>
+<td>list[str]</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2890</td>
+<td>0.614356</td>
+<td>"Three Kings (1999)"</td>
+<td>["Action", "Adventure", … "War"]</td>
+</tr>
+<tr class="even">
+<td>2617</td>
+<td>0.602196</td>
+<td>"Mummy, The (1999)"</td>
+<td>["Action", "Adventure", … "Thriller"]</td>
+</tr>
+<tr class="odd">
+<td>485</td>
+<td>0.599206</td>
+<td>"Last Action Hero (1993)"</td>
+<td>["Action", "Adventure", … "Fantasy"]</td>
+</tr>
+<tr class="even">
+<td>91500</td>
+<td>0.579201</td>
+<td>"The Hunger Games (2012)"</td>
+<td>["Action", "Adventure", … "Thriller"]</td>
+</tr>
+<tr class="odd">
+<td>6016</td>
+<td>0.571565</td>
+<td>"City of God (Cidade de Deus) (2002)"</td>
+<td>["Action", "Adventure", … "Thriller"]</td>
+</tr>
+<tr class="even">
+<td>3052</td>
+<td>0.570185</td>
+<td>"Dogma (1999)"</td>
+<td>["Adventure", "Comedy", "Fantasy"]</td>
+</tr>
+<tr class="odd">
+<td>1197</td>
+<td>0.568976</td>
+<td>"Princess Bride, The (1987)"</td>
+<td>["Action", "Adventure", … "Romance"]</td>
+</tr>
+<tr class="even">
+<td>1215</td>
+<td>0.565744</td>
+<td>"Army of Darkness (1993)"</td>
+<td>["Action", "Adventure", … "Horror"]</td>
+</tr>
+<tr class="odd">
+<td>7143</td>
+<td>0.562921</td>
+<td>"Last Samurai, The (2003)"</td>
+<td>["Action", "Adventure", … "War"]</td>
+</tr>
+<tr class="even">
+<td>2115</td>
+<td>0.562691</td>
+<td>"Indiana Jones and the Temple of Doom (1984)"</td>
+<td>["Action", "Adventure", "Fantasy"]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="display-embedding-rec-posters" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display posters for recommendations (join via links to get tmdb_id)</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>rec_with_posters <span class="op">=</span> top_movies_llm.join(links.select([<span class="st">"movie_id"</span>, <span class="st">"tmdb_id"</span>]), on<span class="op">=</span><span class="st">"movie_id"</span>).join(</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    posters, on<span class="op">=</span><span class="st">"tmdb_id"</span>, how<span class="op">=</span><span class="st">"inner"</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>rec_poster_paths <span class="op">=</span> rec_with_posters[<span class="st">"poster_path"</span>].to_list()</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Recommended for Alice**"</span>))</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>tmdb_images(rec_poster_paths)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-embedding-rec-posters-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Recommended for Alice</strong></p>
+</div>
+<div id="display-embedding-rec-posters-2" class="cell-output cell-output-display cell-output-markdown" data-execution_count="14">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/vkhEaWAv5j3qgrOGp3BgMeiYPKj.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/yXCbOiVDCxO71zI7cuwBRXdftq8.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/gpdVNUaa4LhRMLfJOPj1AZdhAZ3.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/xsgTuAtR2zSH8Umg3jWZcZjlDpe.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/dXXhveI3VO51C3VNzNrxYl2xbST.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/2FC9L9MrjBoGHYjYZjdWQdopVYb.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/yhIsVvcUm7QxzLfT6HW2wLf5ajY.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/fClJQW8xn8wHOFqoA4jUn0PZh1f.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/a8jmJPs5eZBARmnuEEvZwbjwyz4.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/k7eYdWvhYQyRQoU2TB2A2Xu2TfD.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>Note</strong>: LLM embeddings capture semantic relationships between movies and user preferences!</p>
+</section>
+</section>
+</section>
+<section id="metadata-generation" class="level1">
+<h1>Metadata Generation</h1>
+<p>LLMs can enrich sparse movie catalogs by generating:</p>
+<ul>
+<li><strong>Tags/Keywords</strong>: “heartwarming”, “visually stunning”</li>
+<li><strong>Mood Labels</strong>: “uplifting”, “intense”, “nostalgic”</li>
+<li><strong>Thematic Topics</strong>: “coming-of-age”, “family bonds”, “adventure”</li>
+</ul>
+<section id="example-prompt-for-metadata-generation" class="level2">
+<h2 class="anchored" data-anchor-id="example-prompt-for-metadata-generation">Example Prompt for Metadata Generation</h2>
+<div id="metadata-generation" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>example_movie <span class="op">=</span> movies.<span class="bu">filter</span>(pl.col(<span class="st">"title"</span>).<span class="bu">str</span>.contains(<span class="st">"Gump"</span>)).to_dicts()[<span class="dv">0</span>]</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>metadata_prompt <span class="op">=</span> <span class="ss">f"""</span><span class="op">\</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="ss">You are a film analyst. Generate metadata for this movie:</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="ss">Title: </span><span class="sc">{</span>example_movie[<span class="st">"title"</span>]<span class="sc">}</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="ss">Genres: </span><span class="sc">{</span><span class="st">", "</span><span class="sc">.</span>join(example_movie[<span class="st">"genres"</span>])<span class="sc">}</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="ss">Generate:</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="ss">1. Three thematic tags (e.g., friendship, adventure)</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="ss">2. Mood label (one word)</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="ss">3. Target audience (one phrase)</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="ss">4. Similar movie archetypes</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY valid JSON in this format:</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="ch">{{</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="ss">  "thematic_tags": ["tag1", "tag2", "tag3"],</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="ss">  "mood": "word",</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="ss">  "target_audience": "phrase",</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a><span class="ss">  "similar_archetypes": ["archetype1", "archetype2"]</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a><span class="ch">}}</span></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>display(show_prompt(metadata_prompt))</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate metadata using LLM</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>generated_metadata <span class="op">=</span> ollama_generate_json(</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    metadata_prompt,</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>LLM_MODEL,</span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>    temperature<span class="op">=</span><span class="fl">0.3</span>,  <span class="co"># Lower temperature for more structured output</span></span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>display(show_response(generated_metadata))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="metadata-generation-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Prompt:</strong></p>
+<pre class="prompt"><code>You are a film analyst. Generate metadata for this movie:
+
+Title: Forrest Gump (1994)
+Genres: Comedy, Drama, Romance, War
+
+Generate:
+1. Three thematic tags (e.g., friendship, adventure)
+2. Mood label (one word)
+3. Target audience (one phrase)
+4. Similar movie archetypes
+
+Output ONLY valid JSON in this format:
+{
+  "thematic_tags": ["tag1", "tag2", "tag3"],
+  "mood": "word",
+  "target_audience": "phrase",
+  "similar_archetypes": ["archetype1", "archetype2"]
+}
+</code></pre>
+</div>
+<div id="metadata-generation-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>{
+  "thematic_tags": [
+    "destiny_and_fate",
+    "innocence_and_perspective",
+    "historical_footprint"
+  ],
+  "mood": "nostalgic",
+  "target_audience": "adults_seeking_emotional_and_inspirational_storytelling",
+  "similar_archetypes": [
+    "the_everyman_hero",
+    "the_wheelchair-bound_triumphant_underdog",
+    "the_chronological_epic_with_romantic_undercurrents"
+  ]
+}</code></pre>
+</div>
+</div>
+<p><strong>Use Cases:</strong></p>
+<ol type="1">
+<li><strong>Enhanced Search</strong>: Users can query “heartwarming family movies”</li>
+<li><strong>Mood-Based Recommendation</strong>: Filter by emotional tone</li>
+<li><strong>Richer Embeddings</strong>: Incorporate generated tags into item representations</li>
+</ol>
+</section>
+<section id="batch-metadata-generation" class="level2">
+<h2 class="anchored" data-anchor-id="batch-metadata-generation">Batch Metadata Generation</h2>
+<p>In production, you’d generate metadata for entire catalog. Let’s use <strong>multiple descriptive dimensions</strong> to create rich movie profiles.</p>
+<section id="define-descriptive-dimensions" class="level3">
+<h3 class="anchored" data-anchor-id="define-descriptive-dimensions">Define Descriptive Dimensions</h3>
+<p>We’ll generate three types of descriptions for each movie:</p>
+<ol type="1">
+<li><strong>Mood and Atmosphere</strong>: Emotional tone and viewing experience (e.g., “uplifting”, “tense”, “melancholic”)</li>
+<li><strong>Target Audience</strong>: Who would enjoy this movie and why (e.g., “families with young children”, “thriller enthusiasts”)</li>
+<li><strong>Plot Essence</strong>: Core narrative elements in 1-2 sentences (e.g., “A toy’s journey to find its owner”)</li>
+</ol>
+<div id="batch-metadata-sample-movies" class="cell" data-execution_count="16">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Sample from most-rated movies</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>sample_movies <span class="op">=</span> movies.join(most_rated_movies, on<span class="op">=</span><span class="st">"movie_id"</span>, how<span class="op">=</span><span class="st">"semi"</span>).sample(n<span class="op">=</span><span class="dv">30</span>, seed<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"**Sampled </span><span class="sc">{</span><span class="bu">len</span>(sample_movies)<span class="sc">}</span><span class="ss"> movies** from most-rated for metadata generation"</span>)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"**Sample titles:**"</span>))</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>sample_movies.select(<span class="st">"title"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="batch-metadata-sample-movies-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Sampled 30 movies</strong> from most-rated for metadata generation</p>
+</div>
+<div id="batch-metadata-sample-movies-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Sample titles:</strong></p>
+</div>
+<div id="batch-metadata-sample-movies-3" class="cell-output cell-output-display" data-execution_count="16">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (30, 1)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">title</th>
+</tr>
+<tr class="even">
+<td>str</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"Wedding Crashers (2005)"</td>
+</tr>
+<tr class="even">
+<td>"Army of Darkness (1993)"</td>
+</tr>
+<tr class="odd">
+<td>"Mad Max: Fury Road (2015)"</td>
+</tr>
+<tr class="even">
+<td>"Royal Tenenbaums, The (2001)"</td>
+</tr>
+<tr class="odd">
+<td>"Shaun of the Dead (2004)"</td>
+</tr>
+<tr class="even">
+<td>"RoboCop (1987)"</td>
+</tr>
+<tr class="odd">
+<td>"Speed (1994)"</td>
+</tr>
+<tr class="even">
+<td>"Magnolia (1999)"</td>
+</tr>
+<tr class="odd">
+<td>"Dr. Strangelove or: How I Learned to Stop Worrying…</td>
+</tr>
+<tr class="even">
+<td>"Limitless (2011)"</td>
+</tr>
+<tr class="odd">
+<td>…</td>
+</tr>
+<tr class="even">
+<td>"Dances with Wolves (1990)"</td>
+</tr>
+<tr class="odd">
+<td>"There Will Be Blood (2007)"</td>
+</tr>
+<tr class="even">
+<td>"O Brother, Where Art Thou? (2000)"</td>
+</tr>
+<tr class="odd">
+<td>"Star Wars: Episode I - The Phantom Menace (1999)"</td>
+</tr>
+<tr class="even">
+<td>"V for Vendetta (2006)"</td>
+</tr>
+<tr class="odd">
+<td>"True Romance (1993)"</td>
+</tr>
+<tr class="even">
+<td>"As Good as It Gets (1997)"</td>
+</tr>
+<tr class="odd">
+<td>"Looper (2012)"</td>
+</tr>
+<tr class="even">
+<td>"Rocky Horror Picture Show, The (1975)"</td>
+</tr>
+<tr class="odd">
+<td>"Kung Fu Panda (2008)"</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="metadata-generation-function" class="cell" data-execution_count="17">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrying multiple times in case of invalid response</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Small LLMs sometimes fail to follow instruction about structure</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="at">@retry</span>(<span class="dv">3</span>, exceptions<span class="op">=</span>(<span class="pp">ValueError</span>, json.JSONDecodeError))</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_movie_metadata(title, genres):</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Generate multi-dimensional metadata using LLM.</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns:</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="co">        dict with keys: mood, target_audience, plot_essence</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    prompt <span class="op">=</span> <span class="ss">f"""You are a film critic. Describe this movie along three dimensions:</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a><span class="ss">Title: </span><span class="sc">{</span>title<span class="sc">}</span></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="ss">Genres: </span><span class="sc">{</span><span class="st">", "</span><span class="sc">.</span>join(genres) <span class="cf">if</span> genres <span class="cf">else</span> <span class="st">"Unknown"</span><span class="sc">}</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a><span class="ss">Generate brief descriptions (up to 2 sentences each):</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a><span class="ss">1. Mood and Atmosphere: What's the emotional tone? How does it feel to watch?</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="ss">2. Target Audience: Who would enjoy this and why?</span></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a><span class="ss">3. Plot Essence: Core story in 1-2 sentences.</span></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY valid JSON:</span></span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a><span class="ch">{{</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a><span class="ss">  "mood": "brief description",</span></span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a><span class="ss">  "target_audience": "brief description",</span></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a><span class="ss">  "plot_essence": "brief description"</span></span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a><span class="ch">}}</span></span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>    metadata <span class="op">=</span> ollama_generate_json(prompt, model<span class="op">=</span>LLM_MODEL, temperature<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>    required_keys <span class="op">=</span> {<span class="st">"mood"</span>, <span class="st">"target_audience"</span>, <span class="st">"plot_essence"</span>}</span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> required_keys.issubset(metadata):</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"One or more keys are missing: </span><span class="sc">{</span>required_keys <span class="op">-</span> <span class="bu">set</span>(metadata)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> metadata</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="metadata-generation-axes" class="cell" data-execution_count="18">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate metadata for all sampled movies</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>llm_metadata <span class="op">=</span> []</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Generating multi-dimensional metadata..."</span>)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, movie <span class="kw">in</span> <span class="bu">enumerate</span>(sample_movies.to_dicts()):</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  [</span><span class="sc">{</span>i <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">/</span><span class="sc">{</span><span class="bu">len</span>(sample_movies)<span class="sc">}</span><span class="ss">] </span><span class="sc">{</span>movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    metadata <span class="op">=</span> generate_movie_metadata(movie[<span class="st">"title"</span>], movie[<span class="st">"genres"</span>])</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    llm_metadata.append(metadata)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>llm_metadata_df <span class="op">=</span> pl.DataFrame(llm_metadata)</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">✅ Metadata generation complete!"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Generating multi-dimensional metadata...
+  [1/30] Wedding Crashers (2005)
+  [2/30] Army of Darkness (1993)
+  [3/30] Mad Max: Fury Road (2015)
+  [4/30] Royal Tenenbaums, The (2001)
+  [5/30] Shaun of the Dead (2004)
+  [6/30] RoboCop (1987)
+  [7/30] Speed (1994)
+  [8/30] Magnolia (1999)
+  [9/30] Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb (1964)
+  [10/30] Limitless (2011)
+  [11/30] Ghostbusters (a.k.a. Ghost Busters) (1984)
+  [12/30] Pirates of the Caribbean: At World's End (2007)
+  [13/30] Training Day (2001)
+  [14/30] Natural Born Killers (1994)
+  [15/30] Air Force One (1997)
+  [16/30] Arachnophobia (1990)
+  [17/30] Vertigo (1958)
+  [18/30] Dumb &amp; Dumber (Dumb and Dumber) (1994)
+  [19/30] Fight Club (1999)
+  [20/30] Back to the Future Part III (1990)
+  [21/30] Dances with Wolves (1990)
+  [22/30] There Will Be Blood (2007)
+  [23/30] O Brother, Where Art Thou? (2000)
+  [24/30] Star Wars: Episode I - The Phantom Menace (1999)
+  [25/30] V for Vendetta (2006)
+  [26/30] True Romance (1993)
+  [27/30] As Good as It Gets (1997)
+  [28/30] Looper (2012)
+  [29/30] Rocky Horror Picture Show, The (1975)
+  [30/30] Kung Fu Panda (2008)
+
+✅ Metadata generation complete!</code></pre>
+</div>
+</div>
+<div id="cell-display-generated-metadata" class="cell" data-execution_count="19">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>show_response(llm_metadata[:<span class="dv">3</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-generated-metadata" class="cell-output cell-output-display cell-output-markdown" data-execution_count="19">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>[
+  {
+    "mood": "Lighthearted and witty, with a playful, fast-paced energy that balances charm and cheekiness\u2014leaving viewers grinning despite its morally dubious antics. The tone is warmly irreverent, blending romantic whimsy with comedic mischief, making it feel like a clever, carefree escape rather than a heavy-handed satire.",
+    "target_audience": "Ideal for fans of sharp, dialogue-driven comedies who enjoy rom-com tropes subverted with humor (think *The Hangover* meets *How to Lose a Guy in 10 Days*), as well as viewers who appreciate raunchy but heartfelt stories with charismatic, flawed protagonists. Perfect for groups or solo watchers craving a breezy, laugh-out-loud experience.",
+    "plot_essence": "Two con artists, John and Sage, exploit their charm to crash high-society weddings for free perks, but their latest scheme spirals into unexpected romantic entanglements when they befriend the groom\u2019s sister and her free-spirited friend\u2014blurring the line between scam and genuine connection."
+  },
+  {
+    "mood": "A wild, chaotic blend of dark humor, adrenaline-fueled action, and gothic horror\u2014equal parts hilarious and unsettling, with a frenetic energy that keeps viewers laughing even as the stakes feel absurdly high. The atmosphere oscillates between campy fun and genuine scares, wrapped in a retro-futuristic, medieval-meets-modern aesthetic that feels both timeless and deliciously over-the-top.",
+    "target_audience": "Fans of horror-comedy, action-packed satire, and cult classics will devour this; ideal for those who love Bruce Campbell\u2019s iconic one-liners, gory yet goofy violence, and a story that subverts expectations with sheer audacity. Also perfect for viewers who enjoy reboots-with-a-twist, as the film plays with time travel and undead legions in a way that\u2019s both clever and ridiculous.",
+    "plot_essence": "A bumbling hero, Ash Williams, accidentally time-travels to a medieval world overrun by an undead army he himself unleashed centuries later, and must outwit both the dead and his past self to survive\u2014while delivering some of the most quotable lines in horror history."
+  },
+  {
+    "mood": "A relentless, visceral frenzy of adrenaline and chaos\u2014equal parts exhilarating and oppressive, with a raw, post-apocalyptic grit that immerses viewers in a world of survival, brutality, and fleeting humanity, punctuated by breathtaking visuals and a pounding, immersive soundtrack.",
+    "target_audience": "Fans of high-octane action, sci-fi spectacle, and visually stunning cinema will devour this; it also appeals to those who crave deep character arcs beneath the carnage, as well as audiences who appreciate genre-defying storytelling with emotional weight.",
+    "plot_essence": "In a barren wasteland, Immortan Joe\u2019s tyrannical rule is challenged by his wife, Furiosa, who escapes with his five wives and a young warrior, Max, sparking a high-speed, blood-soaked chase across the desert as warlords, mutants, and Joe\u2019s relentless army hunt them down."
+  }
+]</code></pre>
+</div>
+</div>
+<div id="enrich-movies-df" class="cell" data-execution_count="20">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>enriched_df <span class="op">=</span> pl.concat([sample_movies, llm_metadata_df], how<span class="op">=</span><span class="st">"horizontal"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="cell-display-enriched-catalog" class="cell" data-execution_count="21">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display first movie with full metadata</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>first_movie <span class="op">=</span> enriched_df.to_dicts()[<span class="dv">0</span>]</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>    Markdown(<span class="ss">f"""</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="ss">**Example: </span><span class="sc">{</span>first_movie[<span class="st">"title"</span>]<span class="sc">}</span><span class="ss">**</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="ss">**Genres:** </span><span class="sc">{</span><span class="st">", "</span><span class="sc">.</span>join(first_movie[<span class="st">"genres"</span>])<span class="sc">}</span></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="ss">**Mood:** </span><span class="sc">{</span>first_movie[<span class="st">"mood"</span>]<span class="sc">}</span></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a><span class="ss">**Target Audience:** </span><span class="sc">{</span>first_movie[<span class="st">"target_audience"</span>]<span class="sc">}</span></span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a><span class="ss">**Plot Essence:** </span><span class="sc">{</span>first_movie[<span class="st">"plot_essence"</span>]<span class="sc">}</span></span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span>)</span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-enriched-catalog" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Example: Wedding Crashers (2005)</strong></p>
+<p><strong>Genres:</strong> Comedy, Romance</p>
+<p><strong>Mood:</strong> Lighthearted and witty, with a playful, fast-paced energy that balances charm and cheekiness—leaving viewers grinning despite its morally dubious antics. The tone is warmly irreverent, blending romantic whimsy with comedic mischief, making it feel like a clever, carefree escape rather than a heavy-handed satire.</p>
+<p><strong>Target Audience:</strong> Ideal for fans of sharp, dialogue-driven comedies who enjoy rom-com tropes subverted with humor (think <em>The Hangover</em> meets <em>How to Lose a Guy in 10 Days</em>), as well as viewers who appreciate raunchy but heartfelt stories with charismatic, flawed protagonists. Perfect for groups or solo watchers craving a breezy, laugh-out-loud experience.</p>
+<p><strong>Plot Essence:</strong> Two con artists, John and Sage, exploit their charm to crash high-society weddings for free perks, but their latest scheme spirals into unexpected romantic entanglements when they befriend the groom’s sister and her free-spirited friend—blurring the line between scam and genuine connection.</p>
+</div>
+</div>
+</section>
+<section id="embed-each-dimension" class="level3">
+<h3 class="anchored" data-anchor-id="embed-each-dimension">Embed Each Dimension</h3>
+<p>Now let’s embed each metadata dimension separately. This allows us to find similar movies along each axis:</p>
+<div id="embed-dimensions" class="cell" data-execution_count="22">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract text for each dimension</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>mood_texts <span class="op">=</span> enriched_df[<span class="st">"mood"</span>].to_list()</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>audience_texts <span class="op">=</span> enriched_df[<span class="st">"target_audience"</span>].to_list()</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>plot_texts <span class="op">=</span> enriched_df[<span class="st">"plot_essence"</span>].to_list()</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Generating embeddings for each dimension..."</span>)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - Mood: </span><span class="sc">{</span><span class="bu">len</span>(mood_texts)<span class="sc">}</span><span class="ss"> descriptions"</span>)</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - Target Audience: </span><span class="sc">{</span><span class="bu">len</span>(audience_texts)<span class="sc">}</span><span class="ss"> descriptions"</span>)</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - Plot Essence: </span><span class="sc">{</span><span class="bu">len</span>(plot_texts)<span class="sc">}</span><span class="ss"> descriptions"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Generating embeddings for each dimension...
+  - Mood: 30 descriptions
+  - Target Audience: 30 descriptions
+  - Plot Essence: 30 descriptions</code></pre>
+</div>
+</div>
+<div id="generate-dimension-embeddings" class="cell" data-execution_count="23">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate embeddings for each dimension (in batches)</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Embedding mood descriptions..."</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>mood_embeddings <span class="op">=</span> []</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> batch <span class="kw">in</span> itertools.batched(mood_texts, <span class="dv">10</span>):</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>    batch_emb <span class="op">=</span> ollama_embed(<span class="bu">list</span>(batch), model<span class="op">=</span>EMBED_MODEL)</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    mood_embeddings.extend(batch_emb)</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Embedding target audience descriptions..."</span>)</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>audience_embeddings <span class="op">=</span> []</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> batch <span class="kw">in</span> itertools.batched(audience_texts, <span class="dv">10</span>):</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>    batch_emb <span class="op">=</span> ollama_embed(<span class="bu">list</span>(batch), model<span class="op">=</span>EMBED_MODEL)</span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>    audience_embeddings.extend(batch_emb)</span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Embedding plot essence descriptions..."</span>)</span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>plot_embeddings <span class="op">=</span> []</span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> batch <span class="kw">in</span> itertools.batched(plot_texts, <span class="dv">10</span>):</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>    batch_emb <span class="op">=</span> ollama_embed(<span class="bu">list</span>(batch), model<span class="op">=</span>EMBED_MODEL)</span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>    plot_embeddings.extend(batch_emb)</span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert to numpy arrays (one row per movie)</span></span>
+<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a>mood_matrix <span class="op">=</span> np.array(mood_embeddings)</span>
+<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>audience_matrix <span class="op">=</span> np.array(audience_embeddings)</span>
+<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a>plot_matrix <span class="op">=</span> np.array(plot_embeddings)</span>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Embedding complete!"</span>)</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - Mood matrix shape: </span><span class="sc">{</span>mood_matrix<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - Audience matrix shape: </span><span class="sc">{</span>audience_matrix<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  - Plot matrix shape: </span><span class="sc">{</span>plot_matrix<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Embedding mood descriptions...
+Embedding target audience descriptions...
+Embedding plot essence descriptions...
+
+✅ Embedding complete!
+  - Mood matrix shape: (30, 768)
+  - Audience matrix shape: (30, 768)
+  - Plot matrix shape: (30, 768)</code></pre>
+</div>
+</div>
+</section>
+<section id="sort-by-semantic-similarity" class="level3">
+<h3 class="anchored" data-anchor-id="sort-by-semantic-similarity">Sort by Semantic Similarity</h3>
+<p>Now we can find movies similar to the first movie along each dimension using cosine similarity:</p>
+<div id="compute-similarities-per-dimension" class="cell" data-execution_count="24">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Reference movie (first item)</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>reference_idx <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>reference_movie <span class="op">=</span> enriched_df.to_dicts()[reference_idx]</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Reference Movie:** </span><span class="sc">{</span>reference_movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>))</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Genres:** </span><span class="sc">{</span><span class="st">', '</span><span class="sc">.</span>join(reference_movie[<span class="st">'genres'</span>])<span class="sc">}</span><span class="ss">"</span>))</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute cosine similarity for each dimension</span></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Mood similarities</span></span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>mood_ref <span class="op">=</span> mood_matrix[reference_idx].reshape(<span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>mood_similarities <span class="op">=</span> cosine_similarity(mood_ref, mood_matrix)[<span class="dv">0</span>]</span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Audience similarities</span></span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>audience_ref <span class="op">=</span> audience_matrix[reference_idx].reshape(<span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>audience_similarities <span class="op">=</span> cosine_similarity(audience_ref, audience_matrix)[<span class="dv">0</span>]</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot similarities</span></span>
+<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>plot_ref <span class="op">=</span> plot_matrix[reference_idx].reshape(<span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>plot_similarities <span class="op">=</span> cosine_similarity(plot_ref, plot_matrix)[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="compute-similarities-per-dimension-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Reference Movie:</strong> Wedding Crashers (2005)</p>
+</div>
+<div id="compute-similarities-per-dimension-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Genres:</strong> Comedy, Romance</p>
+</div>
+</div>
+<div id="create-similarity-dataframes" class="cell" data-execution_count="25">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create dataframe with similarities for each dimension</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>similarity_df <span class="op">=</span> enriched_df.select(</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"movie_id"</span>, <span class="st">"title"</span>, <span class="st">"mood"</span>, <span class="st">"target_audience"</span>, <span class="st">"plot_essence"</span>]</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>).with_columns(</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>        pl.Series(<span class="st">"mood_similarity"</span>, mood_similarities),</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>        pl.Series(<span class="st">"audience_similarity"</span>, audience_similarities),</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>        pl.Series(<span class="st">"plot_similarity"</span>, plot_similarities),</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Exclude the reference movie itself (similarity = 1.0)</span></span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>other_movies_df <span class="op">=</span> similarity_df.<span class="bu">filter</span>(pl.col(<span class="st">"title"</span>) <span class="op">!=</span> reference_movie[<span class="st">"title"</span>])</span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Computed similarities for </span><span class="sc">{</span><span class="bu">len</span>(other_movies_df)<span class="sc">}</span><span class="ss"> movies"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ Computed similarities for 29 movies</code></pre>
+</div>
+</div>
+<div id="cell-display-similarity-sample" class="cell" data-execution_count="26">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>other_movies_df.select(</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"title"</span>, <span class="st">"mood_similarity"</span>, <span class="st">"audience_similarity"</span>, <span class="st">"plot_similarity"</span>]</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>).head()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-similarity-sample" class="cell-output cell-output-display" data-execution_count="26">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (5, 4)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">title</th>
+<th data-quarto-table-cell-role="th">mood_similarity</th>
+<th data-quarto-table-cell-role="th">audience_similarity</th>
+<th data-quarto-table-cell-role="th">plot_similarity</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>f64</td>
+<td>f64</td>
+<td>f64</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"Army of Darkness (1993)"</td>
+<td>0.639931</td>
+<td>0.541269</td>
+<td>0.340079</td>
+</tr>
+<tr class="even">
+<td>"Mad Max: Fury Road (2015)"</td>
+<td>0.505394</td>
+<td>0.547591</td>
+<td>0.419636</td>
+</tr>
+<tr class="odd">
+<td>"Royal Tenenbaums, The (2001)"</td>
+<td>0.636462</td>
+<td>0.626902</td>
+<td>0.431996</td>
+</tr>
+<tr class="even">
+<td>"Shaun of the Dead (2004)"</td>
+<td>0.514145</td>
+<td>0.65193</td>
+<td>0.432054</td>
+</tr>
+<tr class="odd">
+<td>"RoboCop (1987)"</td>
+<td>0.596327</td>
+<td>0.555125</td>
+<td>0.347083</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="sort-by-mood-similarity" class="cell" data-execution_count="27">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"### Most Similar by Mood</span><span class="ch">\n</span><span class="st">"</span>))</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>sorted_by_mood <span class="op">=</span> other_movies_df.sort(<span class="st">"mood_similarity"</span>, descending<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> movie <span class="kw">in</span> sorted_by_mood.select([<span class="st">"title"</span>, <span class="st">"mood"</span>, <span class="st">"mood_similarity"</span>]).head(<span class="dv">5</span>).to_dicts():</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>        Markdown(</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**• </span><span class="sc">{</span>movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">** (similarity: </span><span class="sc">{</span>movie[<span class="st">'mood_similarity'</span>]<span class="sc">:.3f}</span><span class="ss">)  </span><span class="ch">\n</span><span class="ss">  *Mood: </span><span class="sc">{</span>movie[<span class="st">'mood'</span>]<span class="sc">}</span><span class="ss">*</span><span class="ch">\n</span><span class="ss">"</span></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="sort-by-mood-similarity-1" class="cell-output cell-output-display cell-output-markdown">
+<section id="most-similar-by-mood" class="level3">
+<h3 class="anchored" data-anchor-id="most-similar-by-mood">Most Similar by Mood</h3>
+</section>
+</div>
+<div id="sort-by-mood-similarity-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Dumb &amp; Dumber (Dumb and Dumber) (1994)</strong> (similarity: 0.780)<br>
+<em>Mood: A lighthearted, fast-paced comedy with a warm, absurdly silly tone—equal parts slapstick and heartfelt, leaving viewers grinning through its relentless physical humor and lovably clueless protagonists. The atmosphere is infectious, blending goofy escapades with a surprisingly cozy, buddy-movie charm.</em></p>
+</div>
+<div id="sort-by-mood-similarity-3" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• As Good as It Gets (1997)</strong> (similarity: 0.748)<br>
+<em>Mood: A warm yet melancholic blend of sharp wit and poignant vulnerability, balancing humor with heartfelt moments—often leaving audiences both laughing and emotionally moved by its raw, humanistic charm.</em></p>
+</div>
+<div id="sort-by-mood-similarity-4" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Ghostbusters (a.k.a. Ghost Busters) (1984)</strong> (similarity: 0.671)<br>
+<em>Mood: A high-energy blend of witty humor, playful sci-fi spectacle, and lighthearted thrills—balancing absurdity with heartfelt camaraderie, making it feel like a fun, chaotic adventure that leaves you grinning from start to finish.</em></p>
+</div>
+<div id="sort-by-mood-similarity-5" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Natural Born Killers (1994)</strong> (similarity: 0.667)<br>
+<em>Mood: A hyper-stylized, chaotic blend of dark satire and visceral intensity—equal parts adrenaline-fueled and nihilistically campy, with a feverish, hallucinatory energy that oscillates between grotesque humor and brutal violence. The tone is unrelenting, self-aware, and deliberately over-the-top, leaving viewers emotionally whiplashed yet oddly mesmerized.</em></p>
+</div>
+<div id="sort-by-mood-similarity-6" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Kung Fu Panda (2008)</strong> (similarity: 0.665)<br>
+<em>Mood: Warm, uplifting, and hilariously energetic with a perfect blend of heartfelt moments and slapstick comedy—like a cozy noodle shop filled with laughter and unexpected wisdom, leaving you grinning from ear to ear.</em></p>
+</div>
+</div>
+<div id="sort-by-audience-similarity" class="cell" data-execution_count="28">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"### Most Similar by Target Audience</span><span class="ch">\n</span><span class="st">"</span>))</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>sorted_by_audience <span class="op">=</span> other_movies_df.sort(<span class="st">"audience_similarity"</span>, descending<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> movie <span class="kw">in</span> (</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>    sorted_by_audience.select([<span class="st">"title"</span>, <span class="st">"target_audience"</span>, <span class="st">"audience_similarity"</span>])</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>    .head(<span class="dv">5</span>)</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>    .to_dicts()</span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>):</span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>        Markdown(</span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**• </span><span class="sc">{</span>movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">** (similarity: </span><span class="sc">{</span>movie[<span class="st">'audience_similarity'</span>]<span class="sc">:.3f}</span><span class="ss">)  </span><span class="ch">\n</span><span class="ss">  *Audience: </span><span class="sc">{</span>movie[<span class="st">'target_audience'</span>]<span class="sc">}</span><span class="ss">*</span><span class="ch">\n</span><span class="ss">"</span></span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="sort-by-audience-similarity-1" class="cell-output cell-output-display cell-output-markdown">
+<section id="most-similar-by-target-audience" class="level3">
+<h3 class="anchored" data-anchor-id="most-similar-by-target-audience">Most Similar by Target Audience</h3>
+</section>
+</div>
+<div id="sort-by-audience-similarity-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• As Good as It Gets (1997)</strong> (similarity: 0.702)<br>
+<em>Audience: Fans of character-driven comedies with depth, particularly those who appreciate dry humor, underdog narratives, and stories about redemption and connection; ideal for viewers who enjoy films like </em>The Royal Tenenbaums* or <em>Eternal Sunshine of the Spotless Mind</em> in tone.*</p>
+</div>
+<div id="sort-by-audience-similarity-3" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Dumb &amp; Dumber (Dumb and Dumber) (1994)</strong> (similarity: 0.665)<br>
+<em>Audience: Fans of raunchy, dumb-but-loveable humor will adore this, especially those who enjoy Jim Carrey’s early manic energy and farcical antics; ideal for viewers who crave laugh-out-loud, low-stakes comedy with a side of quirky friendship dynamics.</em></p>
+</div>
+<div id="sort-by-audience-similarity-4" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Shaun of the Dead (2004)</strong> (similarity: 0.652)<br>
+<em>Audience: Fans of clever, meta-comedy (especially </em>Monty Python* and <em>Zombieland</em> enthusiasts) and horror-lovers who appreciate self-aware, satirical takes on classic tropes—ideal for those who enjoy witty banter, undead antics, and a protagonist as lovable as he is clueless.*</p>
+</div>
+<div id="sort-by-audience-similarity-5" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Royal Tenenbaums, The (2001)</strong> (similarity: 0.627)<br>
+<em>Audience: Fans of Wes Anderson’s signature style (quirky, visually precise, and dialogue-driven) and those who appreciate offbeat dramas with heart, as well as viewers who enjoy layered narratives that balance humor with poignant family dynamics.</em></p>
+</div>
+<div id="sort-by-audience-similarity-6" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Looper (2012)</strong> (similarity: 0.615)<br>
+<em>Audience: Fans of thought-provoking sci-fi with visceral action (e.g., </em>Inception<em>, </em>The Matrix<em>) and viewers who appreciate morally complex protagonists; also ideal for those who enjoy dark, twisty narratives with a mix of humor and existential themes. Genre enthusiasts seeking more than just explosions—substance over spectacle.</em></p>
+</div>
+</div>
+<div id="sort-by-plot-similarity" class="cell" data-execution_count="29">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"### Most Similar by Plot Essence</span><span class="ch">\n</span><span class="st">"</span>))</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>sorted_by_plot <span class="op">=</span> other_movies_df.sort(<span class="st">"plot_similarity"</span>, descending<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> movie <span class="kw">in</span> sorted_by_plot.select([<span class="st">"title"</span>, <span class="st">"plot_essence"</span>, <span class="st">"plot_similarity"</span>]).head(<span class="dv">5</span>).to_dicts():</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>        Markdown(</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**• </span><span class="sc">{</span>movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">** (similarity: </span><span class="sc">{</span>movie[<span class="st">'plot_similarity'</span>]<span class="sc">:.3f}</span><span class="ss">)  </span><span class="ch">\n</span><span class="ss">  *Plot: </span><span class="sc">{</span>movie[<span class="st">'plot_essence'</span>]<span class="sc">}</span><span class="ss">*</span><span class="ch">\n</span><span class="ss">"</span></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="sort-by-plot-similarity-1" class="cell-output cell-output-display cell-output-markdown">
+<section id="most-similar-by-plot-essence" class="level3">
+<h3 class="anchored" data-anchor-id="most-similar-by-plot-essence">Most Similar by Plot Essence</h3>
+</section>
+</div>
+<div id="sort-by-plot-similarity-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• True Romance (1993)</strong> (similarity: 0.519)<br>
+<em>Plot: Clare (Patricia Arquette), a naive runaway, falls for Christian (Christian Slater), a small-time criminal with a penchant for violence, as their chaotic, drug-fueled romance spirals into a deadly game of cat-and-mouse with a ruthless crime lord (Christopher Walken). Their love story becomes a blood-soaked odyssey through the underbelly of Los Angeles, where survival is the only true romance.</em></p>
+</div>
+<div id="sort-by-plot-similarity-3" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Vertigo (1958)</strong> (similarity: 0.518)<br>
+<em>Plot: A detective with acrophobia becomes obsessed with a woman who resembles his late wife, only to uncover a web of deception, identity theft, and fatal obsession in this twisted tale of love and paranoia.</em></p>
+</div>
+<div id="sort-by-plot-similarity-4" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Natural Born Killers (1994)</strong> (similarity: 0.515)<br>
+<em>Plot: A deranged couple, Mickey and Mallory, embark on a murderous crime spree across America, while their exploits are sensationalized by a tabloid journalist and a TV producer, blurring the line between reality and media exploitation in a surreal, violent critique of celebrity culture and desensitization.</em></p>
+</div>
+<div id="sort-by-plot-similarity-5" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• O Brother, Where Art Thou? (2000)</strong> (similarity: 0.515)<br>
+<em>Plot: After escaping a chain-gang prison, a lovable but clueless drifter and his two eccentric companions embark on a quixotic quest to find buried treasure, tangling with corrupt politicians, a siren-like seductress, and a series of bizarre misadventures in the Great Depression-era American South.</em></p>
+</div>
+<div id="sort-by-plot-similarity-6" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Fight Club (1999)</strong> (similarity: 0.509)<br>
+<em>Plot: An insomniac office worker forms an underground fight club with a charismatic soap salesman, spiraling into a violent crusade against societal conformity—only to uncover a shadowy conspiracy that blurs the line between his alter ego and a terrorist cult.</em></p>
+</div>
+</div>
+<p><strong>Key Insights</strong>:</p>
+<ul>
+<li><strong>Multi-dimensional similarity</strong>: Same movie can be similar to different movies along different axes</li>
+<li><strong>Semantic understanding</strong>: LLM embeddings capture meaning, not just keyword matching</li>
+<li><strong>Flexible discovery</strong>: Users can find movies by mood, audience fit, or plot similarity</li>
+</ul>
+<p>This enables: - <strong>Mood-based browsing</strong>: “Show me movies with a similar atmosphere” - <strong>Audience-targeted recommendations</strong>: “Find movies for the same demographic” - <strong>Plot-based discovery</strong>: “Movies with similar narrative structures”</p>
+</section>
+<section id="visual-comparison-three-dimensions-of-similarity" class="level3">
+<h3 class="anchored" data-anchor-id="visual-comparison-three-dimensions-of-similarity">Visual Comparison: Three Dimensions of Similarity</h3>
+<div id="display-dimension-comparison-posters" class="cell" data-execution_count="30">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get top 5 movies for each dimension</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>mood_top5 <span class="op">=</span> sorted_by_mood.head(<span class="dv">5</span>)</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>audience_top5 <span class="op">=</span> sorted_by_audience.head(<span class="dv">5</span>)</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>plot_top5 <span class="op">=</span> sorted_by_plot.head(<span class="dv">5</span>)</span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Join with posters (via links to get tmdb_id)</span></span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>links_tmdb <span class="op">=</span> links.select([<span class="st">"movie_id"</span>, <span class="st">"tmdb_id"</span>])</span>
+<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a>mood_posters <span class="op">=</span> mood_top5.join(links_tmdb, on<span class="op">=</span><span class="st">"movie_id"</span>).join(</span>
+<span id="cb42-9"><a href="#cb42-9" aria-hidden="true" tabindex="-1"></a>    posters, on<span class="op">=</span><span class="st">"tmdb_id"</span>, how<span class="op">=</span><span class="st">"inner"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span></span>
+<span id="cb42-10"><a href="#cb42-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb42-11"><a href="#cb42-11" aria-hidden="true" tabindex="-1"></a>audience_posters <span class="op">=</span> audience_top5.join(links_tmdb, on<span class="op">=</span><span class="st">"movie_id"</span>).join(</span>
+<span id="cb42-12"><a href="#cb42-12" aria-hidden="true" tabindex="-1"></a>    posters, on<span class="op">=</span><span class="st">"tmdb_id"</span>, how<span class="op">=</span><span class="st">"inner"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span></span>
+<span id="cb42-13"><a href="#cb42-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb42-14"><a href="#cb42-14" aria-hidden="true" tabindex="-1"></a>plot_posters <span class="op">=</span> plot_top5.join(links_tmdb, on<span class="op">=</span><span class="st">"movie_id"</span>).join(</span>
+<span id="cb42-15"><a href="#cb42-15" aria-hidden="true" tabindex="-1"></a>    posters, on<span class="op">=</span><span class="st">"tmdb_id"</span>, how<span class="op">=</span><span class="st">"inner"</span>, maintain_order<span class="op">=</span><span class="st">"left"</span></span>
+<span id="cb42-16"><a href="#cb42-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb42-17"><a href="#cb42-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-18"><a href="#cb42-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Display each dimension</span></span>
+<span id="cb42-19"><a href="#cb42-19" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Reference:** </span><span class="sc">{</span>reference_movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>))</span>
+<span id="cb42-20"><a href="#cb42-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-21"><a href="#cb42-21" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"**Most Similar by MOOD:**"</span>))</span>
+<span id="cb42-22"><a href="#cb42-22" aria-hidden="true" tabindex="-1"></a>display(tmdb_images(mood_posters[<span class="st">"poster_path"</span>].to_list()))</span>
+<span id="cb42-23"><a href="#cb42-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-24"><a href="#cb42-24" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"***</span><span class="ch">\n</span><span class="st">**Most Similar by TARGET AUDIENCE:**"</span>))</span>
+<span id="cb42-25"><a href="#cb42-25" aria-hidden="true" tabindex="-1"></a>display(tmdb_images(audience_posters[<span class="st">"poster_path"</span>].to_list()))</span>
+<span id="cb42-26"><a href="#cb42-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-27"><a href="#cb42-27" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"***</span><span class="ch">\n</span><span class="st">**Most Similar by PLOT ESSENCE:**"</span>))</span>
+<span id="cb42-28"><a href="#cb42-28" aria-hidden="true" tabindex="-1"></a>display(tmdb_images(plot_posters[<span class="st">"poster_path"</span>].to_list()))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="display-dimension-comparison-posters-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Reference:</strong> Wedding Crashers (2005)</p>
+</div>
+<div id="display-dimension-comparison-posters-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Most Similar by MOOD:</strong></p>
+</div>
+<div id="display-dimension-comparison-posters-3" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/4LdpBXiCyGKkR8FGHgjKlphrfUc.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/fEKZwT91gxvkAoyPgpNXo8W5fu0.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/xXxuJPNUDZ0vjsAXca0O5p3leVB.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/7E8nLijS9AwwUEPu2oFYOVKhdFA.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/wWt4JYXTg5Wr3xBW2phBrMKgp3x.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="display-dimension-comparison-posters-4" class="cell-output cell-output-display cell-output-markdown">
+<hr>
+<p><strong>Most Similar by TARGET AUDIENCE:</strong></p>
+</div>
+<div id="display-dimension-comparison-posters-5" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/4LdpBXiCyGKkR8FGHgjKlphrfUc.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/xXxuJPNUDZ0vjsAXca0O5p3leVB.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/nG7hZJn7wQTSDCQT39Gy3s3tbrp.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/dgXPhzNJH8HFTBjXPB177yNx6RI.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/sNjL6SqErDBE8OUZlrDLkexfsCj.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+<div id="display-dimension-comparison-posters-6" class="cell-output cell-output-display cell-output-markdown">
+<hr>
+<p><strong>Most Similar by PLOT ESSENCE:</strong></p>
+</div>
+<div id="display-dimension-comparison-posters-7" class="cell-output cell-output-display cell-output-markdown">
+<div>
+<figure class="figure">
+<p><img src="https://media.themoviedb.org/t/p/w154/fEKZwT91gxvkAoyPgpNXo8W5fu0.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/39lXk6ud6KiJgGbbWI2PUKS7y2.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/15uOEfqBNTVtDUT7hGBVCka0rZz.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg" class="img-fluid figure-img"> <img src="https://media.themoviedb.org/t/p/w154/s9foMAcLg8GEzzQzer04qOGdD1k.jpg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Notice how the same reference movie yields <strong>different recommendations</strong> depending on which dimension we prioritize!</p>
+</section>
+</section>
+</section>
+<section id="true-cold-start-unknown-content" class="level1">
+<h1>True Cold Start: Unknown Content</h1>
+<section id="the-cold-start-spectrum" class="level2">
+<h2 class="anchored" data-anchor-id="the-cold-start-spectrum">The Cold Start Spectrum</h2>
+<p>So far, we’ve been handling <strong>“cold for our system”</strong> items:</p>
+<ul>
+<li>Movies like “Toy Story”, “The Matrix” are well-known to LLMs</li>
+<li>LLMs have extensive training data about these items</li>
+<li>We can leverage their world knowledge</li>
+</ul>
+<p><strong>True cold start</strong> = Content completely unknown to the LLM:</p>
+<ul>
+<li>Brand new videos, podcasts, articles</li>
+<li>User-generated content (social media)</li>
+<li>Internal company content</li>
+<li>Truly novel items</li>
+</ul>
+</section>
+<section id="example-short-form-video" class="level2">
+<h2 class="anchored" data-anchor-id="example-short-form-video">Example: Short-Form Video</h2>
+<p>Let’s demonstrate with a short video that didn’t exist during LLM training. We have:</p>
+<ul>
+<li><strong>Transcript</strong>: What’s said in the video</li>
+<li><strong>Screenshots</strong>: Visual frames from the video</li>
+</ul>
+<div id="cell-load-video-data" class="cell" data-execution_count="31">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load transcript</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"../data/shared/short_form/transcript.txt"</span>, <span class="st">"r"</span>) <span class="im">as</span> f:</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>    video_transcript <span class="op">=</span> f.read()</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Video Transcript:**</span><span class="ch">\n\n</span><span class="ss">```</span><span class="ch">\n</span><span class="sc">{</span>video_transcript<span class="sc">}</span><span class="ch">\n</span><span class="ss">```"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="load-video-data" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Video Transcript:</strong></p>
+<pre><code>🎬 Transcript: “Cappuccino vs Flat White — What Do People Actually Prefer?”
+
+[0:00–0:04 | Hook — holding two cups]
+“Most people think these two coffees are the same… but they’re really not.”
+
+[0:04–0:08 | Quick cuts — foam + pour]
+“Let me show you why.”
+
+[0:08–0:18 | Making coffee — you at machine]
+“Both start the same — espresso and milk.”
+“But this one—” (steam milk longer, airy)
+“—gets thick, fluffy foam.”
+“And this one—” (smooth pour)
+“—is all about silky, smooth milk.”
+
+[0:18–0:22 | Hold both drinks up]
+“Cappuccino… vs flat white.”
+
+[0:22–0:40 | Café interviews — fast cuts]
+You: “Quick question — what’s the difference?”
+
+Person 1: “Uhh… size?”
+Person 2: “Flat white is stronger?”
+Person 3: “I have no idea.” (laughs)
+Person 4 (confident): “Cappuccino has more foam.”
+
+You (to camera):
+“Okay… mixed results.”
+
+[0:40–0:55 | Blind taste test]
+“Let’s test it.”
+
+You: “Which one is stronger?”
+Person: “This one.” (points)
+Another: “This one’s smoother.”
+
+You (reveal):
+“This is the flat white.”
+
+[0:55–1:05 | Simple explanation — direct to camera]
+“Here’s the trick:”
+“Cappuccino has more foam — so it feels lighter.”
+“Flat white has less foam — so the coffee tastes stronger.”
+
+[1:05–1:15 | Visual demo — spoon in foam]
+“Look at this.” (spoon sits on cappuccino foam)
+“And this…” (spoon sinks in flat white)
+“Totally different texture.”
+
+[1:15–1:22 | Optional twist — barista or comment]
+Barista (or you):
+“Honestly, it also depends on who makes it.”
+
+[1:22–1:30 | Ending — you sipping both]
+“So… which one are you choosing?”
+
+Text on screen:
+“Team Cappuccino 🫧 or Team Flat White 🥛?”</code></pre>
+</div>
+</div>
+<div class="quarto-layout-panel" data-layout-ncol="4">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: center;">
+<p><img src="../data/shared/short_form/img_0.png" class="img-fluid"></p>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: center;">
+<p><img src="../data/shared/short_form/img_1.png" class="img-fluid"></p>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: center;">
+<p><img src="../data/shared/short_form/img_2.png" class="img-fluid"></p>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: center;">
+<p><img src="../data/shared/short_form/img_3.png" class="img-fluid"></p>
+</div>
+</div>
+</div>
+</section>
+<section id="generate-video-description" class="level2">
+<h2 class="anchored" data-anchor-id="generate-video-description">Generate Video Description</h2>
+<p>First, ask the LLM to create a coherent description from the raw transcript:</p>
+<div id="cell-generate-video-description" class="cell" data-execution_count="32">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>description_prompt <span class="op">=</span> <span class="ss">f"""You are a content analyst. Below is a transcript from a short-form video.</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="ss">Create a concise, engaging description of this video (2-3 sentences) that captures:</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="ss">- The main topic/theme</span></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="ss">- The format/style</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="ss">- The key takeaway</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="ss">Transcript:</span></span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="sc">{</span>video_transcript<span class="sc">}</span></span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY the description text (no extra formatting):</span></span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a>video_description <span class="op">=</span> ollama_generate(description_prompt, model<span class="op">=</span>LLM_MODEL, temperature<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="ss">f"**Generated Video Description:**</span><span class="ch">\n\n</span><span class="sc">{</span>video_description<span class="sc">}</span><span class="ss">"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="generate-video-description" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Generated Video Description:</strong></p>
+<p><strong>“Cappuccino vs Flat White: The Coffee Showdown You Didn’t Know You Needed!”</strong></p>
+<p>This fast-paced, visually driven video breaks down the key differences between cappuccinos and flat whites—from foam texture to coffee strength—with a fun blind taste test and real café interviews. The takeaway? Cappuccinos are lighter and foamier, while flat whites pack a smoother, bolder punch. Which team are you on? ☕</p>
+</div>
+</div>
+</section>
+<section id="generate-metadata-for-unknown-content" class="level2">
+<h2 class="anchored" data-anchor-id="generate-metadata-for-unknown-content">Generate Metadata for Unknown Content</h2>
+<p>Now generate rich metadata from the description:</p>
+<div id="generate-video-metadata" class="cell" data-execution_count="33">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>metadata_prompt <span class="op">=</span> <span class="ss">f"""You are a content analyst. Generate metadata for this video.</span></span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="ss">Video Description:</span></span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a><span class="sc">{</span>video_description<span class="sc">}</span></span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a><span class="ss">Original Transcript (for context):</span></span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a><span class="sc">{</span>video_transcript[:<span class="dv">500</span>]<span class="sc">}</span><span class="ss">...</span></span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a><span class="ss">Generate metadata along the same dimensions as before:</span></span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a><span class="ss">Output ONLY valid JSON:</span></span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a><span class="ch">{{</span></span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a><span class="ss">  "mood": "brief description of emotional tone",</span></span>
+<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a><span class="ss">  "target_audience": "who would enjoy this and why",</span></span>
+<span id="cb46-15"><a href="#cb46-15" aria-hidden="true" tabindex="-1"></a><span class="ss">  "plot_essence": "core narrative/content in 1-2 sentences",</span></span>
+<span id="cb46-16"><a href="#cb46-16" aria-hidden="true" tabindex="-1"></a><span class="ss">  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]</span></span>
+<span id="cb46-17"><a href="#cb46-17" aria-hidden="true" tabindex="-1"></a><span class="ch">}}</span></span>
+<span id="cb46-18"><a href="#cb46-18" aria-hidden="true" tabindex="-1"></a><span class="ss">"""</span></span>
+<span id="cb46-19"><a href="#cb46-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-20"><a href="#cb46-20" aria-hidden="true" tabindex="-1"></a>video_metadata <span class="op">=</span> ollama_generate_json(metadata_prompt, model<span class="op">=</span>LLM_MODEL, temperature<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb46-21"><a href="#cb46-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-22"><a href="#cb46-22" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"**Generated Metadata:**"</span>))</span>
+<span id="cb46-23"><a href="#cb46-23" aria-hidden="true" tabindex="-1"></a>show_response(video_metadata)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="generate-video-metadata-1" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Generated Metadata:</strong></p>
+</div>
+<div id="generate-video-metadata-2" class="cell-output cell-output-display cell-output-markdown" data-execution_count="33">
+<p><strong>LLM Response:</strong></p>
+<pre class="response"><code>{
+  "mood": "engaging, educational, and lighthearted with a competitive yet informative tone\u2014blends humor and visual contrast to make coffee culture accessible",
+  "target_audience": [
+    {
+      "group": "coffee enthusiasts and casual drinkers",
+      "reason": "seeks to clarify subtle differences between popular espresso-based drinks in an entertaining way"
+    },
+    {
+      "group": "baristas, caf\u00e9 workers, or aspiring coffee professionals",
+      "reason": "reinforces technical distinctions (foam texture, milk integration) and real-world preparation insights"
+    },
+    {
+      "group": "social media users (TikTok/Reels/Shorts audiences)",
+      "reason": "fast-paced, visually driven format with a 'showdown' hook ideal for shareable, bite-sized content"
+    },
+    {
+      "group": "travelers or tourists in coffee-centric cities",
+      "reason": "helps navigate caf\u00e9 menus by demystifying ordering choices"
+    }
+  ],
+  "plot_essence": "A visually dynamic comparison of cappuccinos (airy foam, lighter ratio) and flat whites (smooth microfoam, bolder coffee flavor) through side-by-side preparation, blind taste tests, and caf\u00e9 interviews\u2014challenging misconceptions while celebrating the nuanced art of milk integration.",
+  "tags": [
+    "coffee culture",
+    "barista techniques",
+    "food vs food comparisons",
+    "blind taste test",
+    "caf\u00e9 education",
+    "espresso drinks",
+    "visual storytelling",
+    "quick tips",
+    "travel-friendly content",
+    "foam texture analysis",
+    "milk steaming demo",
+    "coffee showdown",
+    "accessible learning",
+    "social media viral potential",
+    "latte art adjacent",
+    "beverage science"
+  ]
+}</code></pre>
+</div>
+</div>
+</section>
+<section id="find-similar-movies" class="level2">
+<h2 class="anchored" data-anchor-id="find-similar-movies">Find Similar Movies</h2>
+<p>Now we can find movies similar to this completely new content:</p>
+<div id="embed-video-description" class="cell" data-execution_count="34">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Embed the video description</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>video_embedding <span class="op">=</span> ollama_embed(video_description, model<span class="op">=</span>EMBED_MODEL)</span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>video_vec <span class="op">=</span> np.array(video_embedding).reshape(<span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare to movie plot embeddings from earlier</span></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>video_plot_similarities <span class="op">=</span> cosine_similarity(video_vec, plot_matrix)[<span class="dv">0</span>]</span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Create results dataframe</span></span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>video_similarity_df <span class="op">=</span> enriched_df.select([<span class="st">"title"</span>, <span class="st">"plot_essence"</span>]).with_columns(</span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a>    [pl.Series(<span class="st">"similarity"</span>, video_plot_similarities)]</span>
+<span id="cb48-11"><a href="#cb48-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb48-12"><a href="#cb48-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-13"><a href="#cb48-13" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb48-14"><a href="#cb48-14" aria-hidden="true" tabindex="-1"></a>    Markdown(</span>
+<span id="cb48-15"><a href="#cb48-15" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Comparing video to **</span><span class="sc">{</span><span class="bu">len</span>(video_similarity_df)<span class="sc">}</span><span class="ss"> movies**...</span><span class="ch">\n\n</span><span class="ss">### Top 5 Most Similar Movies by Content</span><span class="ch">\n</span><span class="ss">"</span></span>
+<span id="cb48-16"><a href="#cb48-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb48-17"><a href="#cb48-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb48-18"><a href="#cb48-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-19"><a href="#cb48-19" aria-hidden="true" tabindex="-1"></a>top_similar <span class="op">=</span> video_similarity_df.sort(<span class="st">"similarity"</span>, descending<span class="op">=</span><span class="va">True</span>).head(<span class="dv">5</span>)</span>
+<span id="cb48-20"><a href="#cb48-20" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> movie <span class="kw">in</span> top_similar.to_dicts():</span>
+<span id="cb48-21"><a href="#cb48-21" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb48-22"><a href="#cb48-22" aria-hidden="true" tabindex="-1"></a>        Markdown(</span>
+<span id="cb48-23"><a href="#cb48-23" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**• </span><span class="sc">{</span>movie[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">** (similarity: </span><span class="sc">{</span>movie[<span class="st">'similarity'</span>]<span class="sc">:.3f}</span><span class="ss">)  </span><span class="ch">\n</span><span class="ss">  *Plot: </span><span class="sc">{</span>movie[<span class="st">'plot_essence'</span>]<span class="sc">}</span><span class="ss">*</span><span class="ch">\n</span><span class="ss">"</span></span>
+<span id="cb48-24"><a href="#cb48-24" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb48-25"><a href="#cb48-25" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="embed-video-description-1" class="cell-output cell-output-display cell-output-markdown">
+<p>Comparing video to <strong>30 movies</strong>…</p>
+<section id="top-5-most-similar-movies-by-content" class="level3">
+<h3 class="anchored" data-anchor-id="top-5-most-similar-movies-by-content">Top 5 Most Similar Movies by Content</h3>
+</section>
+</div>
+<div id="embed-video-description-2" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Rocky Horror Picture Show, The (1975)</strong> (similarity: 0.230)<br>
+<em>Plot: A young engaged couple stumbles upon the castle of the mad, androgynous scientist <strong>Dr.&nbsp;Frank-N-Furter</strong>, who transforms their mundane lives into a wild, gender-bending rock opera of murder, mayhem, and midnight snack rituals—culminating in a cult-favorite battle of the sexes and a transvestite showdown.</em></p>
+</div>
+<div id="embed-video-description-3" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Natural Born Killers (1994)</strong> (similarity: 0.214)<br>
+<em>Plot: A deranged couple, Mickey and Mallory, embark on a murderous crime spree across America, while their exploits are sensationalized by a tabloid journalist and a TV producer, blurring the line between reality and media exploitation in a surreal, violent critique of celebrity culture and desensitization.</em></p>
+</div>
+<div id="embed-video-description-4" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Wedding Crashers (2005)</strong> (similarity: 0.208)<br>
+<em>Plot: Two con artists, John and Sage, exploit their charm to crash high-society weddings for free perks, but their latest scheme spirals into unexpected romantic entanglements when they befriend the groom’s sister and her free-spirited friend—blurring the line between scam and genuine connection.</em></p>
+</div>
+<div id="embed-video-description-5" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Fight Club (1999)</strong> (similarity: 0.192)<br>
+<em>Plot: An insomniac office worker forms an underground fight club with a charismatic soap salesman, spiraling into a violent crusade against societal conformity—only to uncover a shadowy conspiracy that blurs the line between his alter ego and a terrorist cult.</em></p>
+</div>
+<div id="embed-video-description-6" class="cell-output cell-output-display cell-output-markdown">
+<p><strong>• Vertigo (1958)</strong> (similarity: 0.171)<br>
+<em>Plot: A detective with acrophobia becomes obsessed with a woman who resembles his late wife, only to uncover a web of deception, identity theft, and fatal obsession in this twisted tale of love and paranoia.</em></p>
+</div>
+</div>
+<p><strong>Key Insight</strong>:</p>
+<ul>
+<li>We started with completely unknown content (transcript + screenshots)</li>
+<li>LLM generated description and metadata <strong>on-the-fly</strong></li>
+<li>We can now recommend this new content to users with similar preferences</li>
+<li>This works for <strong>any</strong> new content type: videos, articles, podcasts, products</li>
+</ul>
+<p><strong>True cold start solved</strong> using LLM’s ability to understand and generate metadata from raw content!</p>
+</section>
+</section>
+<section id="key-takeaways" class="level1">
+<h1>Key Takeaways</h1>
+<ul>
+<li><strong>Zero-Shot Recommendation</strong>: LLMs can recommend without training data by leveraging semantic understanding</li>
+<li><strong>Cold-Start Problem Solved</strong>: Generate metadata for completely unknown content (videos, podcasts, articles)</li>
+<li><strong>Metadata Enrichment</strong>: LLMs generate rich descriptions across multiple dimensions (mood, audience, plot)</li>
+<li><strong>Multi-Dimensional Similarity</strong>: Different aspects (mood, audience, plot) yield different recommendations</li>
+<li><strong>Semantic Embeddings</strong>: Capture nuanced relationships beyond keyword matching</li>
+</ul>
+<p><strong>Important Papers:</strong></p>
+<ul>
+<li><strong>P5</strong>: Treats recommendation as sequence-to-sequence task <span class="citation" data-cites="geng2022recommendation">(<a href="#ref-geng2022recommendation" role="doc-biblioref">Geng et al., 2022</a>)</span></li>
+<li><strong>LLMRec</strong>: Uses LLM as ranker for candidate items <span class="citation" data-cites="hou2023large">(<a href="#ref-hou2023large" role="doc-biblioref">Hou et al., 2023</a>)</span></li>
+</ul>
+<p><strong>Next</strong>: Part IV.a - Conversational Recommendation with Keyphrases!</p>
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
+<div id="ref-geng2022recommendation" class="csl-entry" role="listitem">
+Geng, S., Liu, S., Fu, Z., Ge, Y., &amp; Zhang, Y. (2022). Recommendation as language processing (<span>P5</span>): A unified pretrain, personalized prompt &amp; predict paradigm. <em>Proceedings of the 16th ACM Conference on Recommender Systems</em>, 299–315. <a href="https://doi.org/10.1145/3523227.3546767">https://doi.org/10.1145/3523227.3546767</a>
+</div>
+<div id="ref-hou2023large" class="csl-entry" role="listitem">
+Hou, Y., Zhang, J., Lin, Z., Lu, H., Xie, R., McAuley, J., &amp; Zhao, W. X. (2023). Large language models are zero-shot rankers for recommender systems. <em>arXiv Preprint arXiv:2305.08845</em>. <a href="https://arxiv.org/abs/2305.08845">https://arxiv.org/abs/2305.08845</a>
+</div>
+<div id="ref-zhang2023collaborative" class="csl-entry" role="listitem">
+<span class="nocase">Zhang, Y., Hou, Y., Zhao, W. X., et al.</span> (2023). Collaborative large language model for recommender systems. <em>arXiv Preprint arXiv:2311.01343</em>. <a href="https://arxiv.org/abs/2311.01343">https://arxiv.org/abs/2311.01343</a>
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>ML Prague 2026 Workshop</p>
+</div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/jankislinger/recsys-genai">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
