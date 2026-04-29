@@ -21,6 +21,8 @@ To prepare for the workshop, there are three main components to download in adva
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
+   For other installation methods (e.g., Windows, Homebrew, Cargo), see https://docs.astral.sh/uv/getting-started/installation/
+
 2. **Clone the repository and install dependencies**:
    ```shell
    uv python install 3.14
