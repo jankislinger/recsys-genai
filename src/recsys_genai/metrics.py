@@ -3,7 +3,6 @@
 Implements common offline metrics including Recall@K, NDCG@K, and diversity measures.
 """
 
-
 import numpy as np
 
 

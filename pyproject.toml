@@ -16,6 +16,7 @@ dependencies = [
     "jupyterlab-quarto~=0.3",
     "jupytext>=1.19.1",
     "numpy~=2.4",
+    "ollama~=0.4",
     "plotnine~=0.15",
     "polars[pyarrow]~=1.39",
     "quarto-cli~=1.9",

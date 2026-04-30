@@ -9,6 +9,7 @@ project:
 
 website:
   title: "RecSys GenAI Workshop"
+  favicon: assets/favicon.svg
   navbar:
     left:
       - text: "Home"
@@ -17,6 +18,8 @@ website:
         menu:
           - text: "Part I: Introduction"
             href: slides/01_introduction.qmd
+          - text: "Part II: Transformer Architecture"
+            href: slides/02_transformer_architecture.qmd
           - text: "Part III: Transformers"
             href: slides/03_transformers.qmd
           - text: "Part V: Generative Pages"

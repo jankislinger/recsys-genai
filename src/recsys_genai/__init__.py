@@ -11,6 +11,12 @@ from recsys_genai.data_utils import (
     load_movielens,
     sample_negative_items,
 )
+from recsys_genai.llm_utils import (
+    check_ollama_available,
+    ollama_embed,
+    ollama_generate,
+    ollama_generate_json,
+)
 from recsys_genai.metrics import (
     coverage,
     diversity_at_k,
@@ -35,6 +41,11 @@ __all__ = [
     "get_user_sequences",
     "SequenceDataset",
     "sample_negative_items",
+    # LLM utilities
+    "ollama_generate",
+    "ollama_generate_json",
+    "ollama_embed",
+    "check_ollama_available",
     # Metrics
     "recall_at_k",
     "ndcg_at_k",

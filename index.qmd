@@ -98,7 +98,7 @@ Design a personalized recommendation page
 ### I. Classical Foundations
 **MovieLens dataset, Matrix Factorization, EASE, Two-Tower Models**
 
-Explore the MovieLens dataset and learn how Netflix won the $1M prize with matrix factorization. Discover why simpler linear models (EASE) often work just as well, and understand the two-tower architecture that powers YouTube and Google Play recommendations at massive scale. Master the fundamentals of embedding-based retrieval.
+Explore the MovieLens dataset and learn how matrix factorization won the Netflix Prize ($1M competition organized by Netflix). Discover why simpler linear models (EASE) often work just as well, and understand the two-tower architecture that powers YouTube and Google Play recommendations at massive scale. Master the fundamentals of embedding-based retrieval.
 
 ### II. Sequential Models
 **Transformer architecture, SASRec, User embedding**
@@ -143,7 +143,7 @@ The workshop is grounded in influential research:
 
 ## Dataset
 
-We'll use **MovieLens** - a real dataset of movie ratings:
+We'll use **MovieLens** [@harper2015movielens] - a real dataset of movie ratings:
 
 - 📊 33 million ratings from 280,000 users
 - 🎬 86,000 movies with titles and genres

@@ -1,0 +1,417 @@
+---
+title: "Transformer Architecture Deep Dive"
+subtitle: "Understanding the Foundation of Modern NLP"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    incremental: false
+---
+
+## Overview
+
+Today we'll explore:
+
+1. **The Original Transformer** (Vaswani et al., 2017)
+2. **Encoder-Decoder Architecture**
+3. **Encoder-Only vs. Decoder-Only Models**
+4. **The [CLS] Token and Text Embeddings**
+
+::: {.fragment}
+*"Attention Is All You Need"* revolutionized NLP and laid the foundation for modern LLMs
+:::
+
+---
+
+## The Original Paper: "Attention Is All You Need"
+
+**Authors:** Vaswani et al., Google Brain & Google Research (2017)
+
+**Key Innovation:** Replace recurrent and convolutional layers with self-attention mechanisms
+
+**Original Task:** Neural Machine Translation
+
+::: {.fragment}
+**Impact:**
+- Enabled parallel processing (vs. sequential RNNs)
+- Captured long-range dependencies better
+- Foundation for GPT, BERT, T5, and modern LLMs
+:::
+
+---
+
+## Full Transformer Architecture
+
+![The Transformer model architecture (Vaswani et al., 2017). Image source: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The-Transformer-model-architecture.png), licensed under CC BY-SA 4.0](../assets/transformer-architecture.png){width=50%}
+
+::: {.fragment}
+**Left:** Encoder stack | **Right:** Decoder stack
+:::
+
+---
+
+## Detailed Encoder-Decoder View
+
+![Encoder-Decoder architecture from "Attention Is All You Need" (Vaswani et al., 2017). Image source: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Attention_Is_All_You_Need_-_Encoder-decoder_Architecture.png), licensed under CC BY-SA 4.0](../assets/encoder-decoder-architecture.png){width=40%}
+
+---
+
+## Encoder Architecture
+
+**Structure:** Stack of N=6 identical layers
+
+Each layer has two sub-layers:
+
+1. **Multi-head self-attention mechanism**
+   - Allows each position to attend to all positions in the input
+   
+2. **Position-wise feed-forward network**
+   - Applied to each position separately and identically
+
+::: {.fragment}
+**Residual connections** + **Layer normalization** around each sub-layer
+
+$$\text{LayerNorm}(x + \text{Sublayer}(x))$$
+:::
+
+---
+
+## Decoder Architecture
+
+**Structure:** Stack of N=6 identical layers
+
+Each layer has three sub-layers:
+
+1. **Masked multi-head self-attention**
+   - Prevents attending to future positions
+   
+2. **Multi-head cross-attention**
+   - Attends to encoder output
+   
+3. **Position-wise feed-forward network**
+
+::: {.fragment}
+**Key difference:** Masking ensures autoregressive property (predict one token at a time)
+:::
+
+---
+
+## Scaled Dot-Product Attention
+
+![Multi-head attention mechanism (Vaswani et al., 2017). Image source: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Attention_Is_All_You_Need_-_Multiheaded_Attention.png), licensed under CC BY-SA 4.0](../assets/multihead-attention.png){width=40%}
+
+---
+
+## Attention Mechanism Formula
+
+$$
+\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V
+$$
+
+**Components:**
+
+- **Q** (Query): "What am I looking for?"
+- **K** (Key): "What do I contain?"
+- **V** (Value): "What information do I provide?"
+- $d_k$: Dimension of keys (for scaling)
+
+::: {.fragment}
+The scaling factor $\frac{1}{\sqrt{d_k}}$ prevents extremely small gradients in softmax
+:::
+
+---
+
+## Multi-Head Attention
+
+**Idea:** Run attention in parallel with different learned projections
+
+$$
+\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, ..., \text{head}_h)W^O
+$$
+
+where each head is:
+
+$$
+\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)
+$$
+
+::: {.fragment}
+**Original paper:** h=8 parallel heads, each with $d_k = d_v = d_{model}/h = 64$
+:::
+
+---
+
+## Positional Encoding
+
+**Problem:** Self-attention has no notion of sequence order!
+
+**Solution:** Add positional encodings to input embeddings
+
+$$
+\text{Input}_i = \text{TokenEmb}_i + \text{PosEmb}_i
+$$
+
+::: {.fragment}
+**Original approach:** Sinusoidal functions
+
+$$
+PE_{(pos, 2i)} = \sin(pos / 10000^{2i/d_{model}})
+$$
+$$
+PE_{(pos, 2i+1)} = \cos(pos / 10000^{2i/d_{model}})
+$$
+:::
+
+---
+
+## Encoder-Only Models: BERT
+
+**BERT** (Bidirectional Encoder Representations from Transformers)  
+*Devlin et al., 2018*
+
+**Key Idea:** Use only the encoder stack with bidirectional attention
+
+**Architecture:**
+- BERT-Base: 12 encoder layers, 768 hidden size
+- BERT-Large: 24 encoder layers, 1024 hidden size
+
+::: {.fragment}
+**Pre-training tasks:**
+1. Masked Language Modeling (MLM): Predict masked tokens
+2. Next Sentence Prediction (NSP): Predict if sentences are consecutive
+:::
+
+---
+
+## Decoder-Only Models: GPT
+
+**GPT** (Generative Pre-trained Transformer)  
+*Radford et al., 2018*
+
+**Key Idea:** Use only the decoder stack with causal (left-to-right) attention
+
+**Architecture:**
+- Stack of decoder layers without encoder cross-attention
+- Causal masking ensures autoregressive generation
+
+::: {.fragment}
+**Pre-training:** Next token prediction
+
+**Modern examples:** GPT-2, GPT-3, GPT-4, LLaMA, etc.
+:::
+
+---
+
+## Encoder vs. Decoder Models
+
+| **Aspect** | **Encoder-Only (BERT)** | **Decoder-Only (GPT)** |
+|------------|-------------------------|------------------------|
+| Attention | Bidirectional | Causal (unidirectional) |
+| Best for | Understanding tasks | Generation tasks |
+| Examples | Classification, NER | Text generation, completion |
+| Training | MLM, NSP | Next token prediction |
+| Context | Full sequence | Left context only |
+
+::: {.fragment}
+**Encoder-Decoder models** (T5, BART): Use both stacks for seq2seq tasks
+:::
+
+---
+
+## The [CLS] Token: Special Classification Token
+
+**Introduced in BERT** (Devlin et al., 2018)
+
+**Purpose:** Aggregate sequence-level representation for classification tasks
+
+**How it works:**
+
+```text
+Input:  [CLS] The movie was great [SEP]
+         ↓      ↓    ↓     ↓   ↓     ↓
+Encoder: Apply bidirectional self-attention
+         ↓      ↓    ↓     ↓   ↓     ↓
+Output: [h_CLS] [h_1] [h_2] [h_3] [h_4] [h_5]
+```
+
+::: {.fragment}
+**Key insight:** `[CLS]` attends to all other tokens → learns holistic representation
+:::
+
+---
+
+## [CLS] Token Mechanism
+
+**Input Representation:**
+
+1. **Token embedding** for `[CLS]` (learned during pre-training)
+2. **Position embedding** (position 0)
+3. **Segment embedding** (sentence A)
+
+$$
+\text{Input}_{[CLS]} = E_{[CLS]} + E_{pos=0} + E_{segA}
+$$
+
+::: {.fragment}
+Through self-attention, `[CLS]` aggregates information from the entire sequence
+:::
+
+---
+
+## Using [CLS] for Text Embeddings
+
+**For classification tasks:**
+
+```python
+# BERT forward pass
+outputs = model(input_ids, attention_mask)
+
+# Extract [CLS] representation
+cls_embedding = outputs.last_hidden_state[:, 0, :]  # Shape: [batch, hidden_dim]
+
+# Feed to classifier
+logits = classifier_layer(cls_embedding)
+```
+
+::: {.fragment}
+**Why [CLS] works:**
+- Has access to full bidirectional context
+- Trained to aggregate sequence-level information
+- Single vector representation (e.g., 768-dim for BERT-Base)
+:::
+
+---
+
+## [CLS] vs. Pooling Strategies
+
+Different ways to get sentence embeddings:
+
+| **Method** | **Description** | **Use Case** |
+|------------|-----------------|--------------|
+| [CLS] token | First token output | BERT-style models |
+| Mean pooling | Average all token outputs | Sentence-BERT |
+| Max pooling | Max over all dimensions | Rare, can be noisy |
+| Weighted pooling | Attention-weighted average | Custom applications |
+
+::: {.fragment}
+**Note:** [CLS] is specific to encoder models; GPT uses the last token for similar purposes
+:::
+
+---
+
+## Text Embeddings for Recommendation
+
+**How we use [CLS] embeddings:**
+
+```text
+User review: "This movie was fantastic!"
+              ↓
+         [CLS] This movie was fantastic ! [SEP]
+              ↓
+         BERT Encoder
+              ↓
+         [CLS] embedding → 768-dim vector
+              ↓
+    Item representation for RecSys
+```
+
+::: {.fragment}
+**Applications:**
+- Content-based filtering with semantic understanding
+- Cold-start problem: Use text descriptions
+- Hybrid models: Combine with collaborative signals
+:::
+
+---
+
+## Pre-training vs. Fine-tuning
+
+**Pre-training phase:**
+- [CLS] learns to aggregate information for MLM and NSP
+- General-purpose representation
+
+**Fine-tuning phase:**
+- [CLS] adapts to specific task (classification, regression, etc.)
+- Add task-specific head on top
+
+::: {.fragment}
+```python
+# Pre-trained BERT
+pretrained_bert = BertModel.from_pretrained('bert-base-uncased')
+
+# Add classification head
+classifier = nn.Linear(768, num_classes)
+model = nn.Sequential(pretrained_bert, lambda x: x[:, 0, :], classifier)
+```
+:::
+
+---
+
+## Modern Developments
+
+**Beyond the original Transformer:**
+
+- **RoBERTa** (2019): BERT with better training
+- **ALBERT** (2019): Lighter BERT with parameter sharing
+- **DistilBERT** (2019): Distilled, smaller BERT
+- **Sentence-BERT** (2019): Optimized for semantic similarity
+- **Vision Transformers** (2020): Transformers for images ([CLS] token for image classification!)
+
+::: {.fragment}
+**Common thread:** The [CLS] token pattern extends beyond NLP!
+:::
+
+---
+
+## Transformers for Sequential Recommendation
+
+**Connecting to RecSys:**
+
+Original transformer → SASRec (Self-Attentive Sequential Recommendation)
+
+- Use decoder-only architecture
+- Apply causal masking
+- Predict next item from sequence
+- No need for [CLS] token (use last position)
+
+::: {.fragment}
+**We'll implement this in upcoming notebooks!**
+:::
+
+---
+
+## Key Takeaways
+
+1. **Original Transformer:** Encoder-decoder with attention mechanisms
+2. **Encoder-only (BERT):** Bidirectional context, best for understanding
+3. **Decoder-only (GPT):** Causal context, best for generation
+4. **[CLS] Token:** Aggregates sequence representation for classification
+5. **Text Embeddings:** [CLS] output provides dense vector for downstream tasks
+
+::: {.fragment}
+**Next:** We'll see how these architectures power recommendation systems!
+:::
+
+---
+
+## References
+
+**Original Papers:**
+
+- Vaswani et al. (2017). "Attention Is All You Need." *NeurIPS*. [arXiv:1706.03762](https://arxiv.org/abs/1706.03762)
+- Devlin et al. (2018). "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding." *NAACL*. [arXiv:1810.04805](https://arxiv.org/abs/1810.04805)
+- Radford et al. (2018). "Improving Language Understanding by Generative Pre-Training." *OpenAI*
+
+**Images:** All figures from "Attention Is All You Need" are used under CC BY-SA 4.0 license, sourced from Wikimedia Commons
+
+---
+
+## Questions?
+
+::: {.fragment}
+**Think about:**
+- How does bidirectional vs. causal attention affect what the model learns?
+- When would you use encoder-only vs. decoder-only vs. encoder-decoder?
+- How can [CLS] embeddings improve recommendation systems?
+:::
+

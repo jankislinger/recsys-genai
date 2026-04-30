@@ -28,7 +28,19 @@ movies, ratings, _, _ = load_movielens("../data")
 alice_id = 1
 alice_ratings = ratings.filter(pl.col("user_id") == alice_id).join(movies, on="movie_id")
 
-print("Alice's Top-Rated Movies (Recent):")
+# Alice's all-time favorites (consistent definition across notebooks)
+alice_favorites = (
+    ratings
+    .filter(pl.col("user_id") == alice_id)
+    .top_k(10, by="rating")
+    .join(movies, on="movie_id")
+    .select("title", "genres")
+)
+
+print("Alice's Favorite Movies (All-Time Top 10 by Rating):")
+print(alice_favorites)
+
+print("\nAlice's Top-Rated Movies (Recent):")
 top_rated = (
     alice_ratings
     .filter(pl.col("rating") >= 4.5)

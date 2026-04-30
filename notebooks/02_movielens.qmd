@@ -143,6 +143,57 @@ display(Markdown(links_stats))
 display(links.head(10))
 ```
 
+## Movie Posters
+
+```{python}
+#| label: load-posters
+
+posters = pl.read_parquet("../data/shared/posters.parquet")
+
+posters_stats = f"""
+**Posters Dataset Overview:**
+
+- Total posters: {len(posters):,}
+- Movies with posters: {posters['movie_id'].n_unique():,}
+- Coverage: {len(posters) / len(movies) * 100:.1f}% of movies have poster data
+"""
+display(Markdown(posters_stats))
+```
+
+Let's display a few movie posters from popular movies:
+
+```{python}
+#| label: display-sample-posters
+
+from recsys_genai.notebook_utils import tmdb_images
+
+# Get some popular highly-rated movies
+popular_movies = (
+    ratings
+    .group_by("movie_id")
+    .agg([
+        pl.count("rating").alias("num_ratings"),
+        pl.mean("rating").alias("avg_rating")
+    ])
+    .filter(pl.col("num_ratings") >= 100)
+    .filter(pl.col("avg_rating") >= 4.0)
+    .sort("num_ratings", descending=True)
+    .head(12)
+    .join(movies, on="movie_id")
+    .join(posters, on="movie_id", how="inner")
+)
+
+# Get poster paths
+poster_paths = popular_movies["poster_path"].to_list()
+
+print(f"Displaying {len(poster_paths)} movie posters from popular highly-rated films:")
+print()
+print("  ".join([f"{row['title']}" for row in popular_movies.head(6).to_dicts()]))
+print()
+
+tmdb_images(poster_paths[:6])
+```
+
 # Rating Distribution
 
 What ratings do users give?
@@ -668,11 +719,20 @@ display(alice_ratings.select(["title", "rating", "genres", "timestamp"]).head(10
 ```
 
 ```{python}
-#| label: alice-top-rated
+#| label: alice-favorites
+
+# Alice's favorites: top 10 highest-rated movies (consistent definition across notebooks)
+alice_favorites = (
+    ratings
+    .filter(pl.col("user_id") == alice_id)
+    .top_k(10, by="rating")
+    .join(movies, on="movie_id")
+    .select("title", "genres")
+)
 
 alice_top_count = len(alice_ratings.filter(pl.col("rating") >= 4.5))
-display(Markdown(f"**ALICE'S TOP-RATED MOVIES (rating >= 4.5, showing 10 of {alice_top_count}):**"))
-display(alice_ratings.filter(pl.col("rating") >= 4.5).select(["title", "rating", "genres"]).head(10))
+display(Markdown(f"**ALICE'S FAVORITE MOVIES (top 10 by rating, from {alice_top_count} with rating >= 4.5):**"))
+display(alice_favorites)
 ```
 
 # Summary and Next Steps
