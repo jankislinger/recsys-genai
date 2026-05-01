@@ -22,7 +22,9 @@ website:
             href: slides/02_transformer_architecture.qmd
           - text: "Part III: Transformers"
             href: slides/03_transformers.qmd
-          - text: "Part V: Generative Pages"
+          - text: "Part V: Reranking & Slate Optimization"
+            href: slides/06_reranking.qmd
+          - text: "Part VI: Generative Pages"
             href: slides/06_generative_pages.qmd
           - text: "Wrap-up"
             href: slides/07_wrapup.qmd
@@ -34,8 +36,10 @@ website:
             href: notebooks/02_foundations.qmd
           - text: "Part III: SASRec"
             href: notebooks/04_sasrec.qmd
-          - text: "Part IV: LLMs"
+          - text: "Part IV: LLMs for Recommendations"
             href: notebooks/05_llm_recommendation.qmd
+          - text: "Part VI: Conversational Recommendation"
+            href: notebooks/06_conversational_recommendation.qmd
           - text: "Capstone Exercise"
             href: notebooks/07_capstone_exercise.qmd
       - text: "References"

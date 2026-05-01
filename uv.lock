@@ -2834,11 +2834,6 @@ dev = [
     { name = "ruff" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "ruff" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = "~=8.1" },
@@ -2862,9 +2857,6 @@ requires-dist = [
     { name = "transformers", specifier = "~=5.4" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = "~=0.15" }]
 
 [[package]]
 name = "referencing"

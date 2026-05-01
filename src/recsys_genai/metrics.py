@@ -50,9 +50,9 @@ def ndcg_at_k(predictions: list[int], targets: set[int], k: int = 10) -> float:
 
     Example:
         >>> preds = [1, 2, 3, 4, 5]
-        >>> targets = {2, 3}
+        >>> targets = {1, 2}
         >>> score = ndcg_at_k(preds, targets, k=5)
-        >>> 0.8 < score < 1.0
+        >>> bool(score == 1.0)
         True
     """
     if not targets:

@@ -1,0 +1,629 @@
+---
+title: "Part V: Reranking and Slate Optimization"
+subtitle: "Beyond Greedy Item Ranking"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    incremental: false
+---
+
+## The Problem with Greedy Ranking {.center}
+
+We've learned to rank items by **relevance scores**:
+
+```text
+Item 1: score = 0.95  ✓
+Item 2: score = 0.92  ✓
+Item 3: score = 0.89  ✓
+...
+Item 10: score = 0.75 ✓
+```
+
+**But is this optimal?**
+
+---
+
+## A Motivating Example
+
+**Alice just finished watching:**
+
+::: {.fragment}
+```text
+🎬 The Fellowship of the Ring (2001)
+```
+:::
+
+::: {.fragment}
+**Standard ranking gives her:**
+
+```text
+1. The Two Towers (2002)          ⭐ 0.98
+2. The Return of the King (2003)  ⭐ 0.97
+3. The Hobbit: An Unexpected...   ⭐ 0.95
+4. The Hobbit: The Desolation...  ⭐ 0.94
+5. The Hobbit: The Battle...      ⭐ 0.93
+6. The Silmarillion (Book)        ⭐ 0.90
+7. Shadow of Mordor (Game)        ⭐ 0.88
+8. LOTR Fan Documentary           ⭐ 0.85
+9. Medieval Fantasy Compilation   ⭐ 0.82
+10. The Rings of Power S1E1       ⭐ 0.80
+```
+:::
+
+---
+
+## What's Wrong Here?
+
+::: {.incremental}
+- ✓ **Individually relevant**: Each item is similar to what Alice watched
+- ✗ **Lack of diversity**: All LOTR/Tolkien content
+- ✗ **No exploration**: What if Alice wants something different?
+- ✗ **Saturation**: Diminishing returns after item 2-3
+:::
+
+::: {.fragment}
+**Key insight**: Optimizing each item **independently** ≠ optimal **list**
+:::
+
+---
+
+## From Items to Slates
+
+**Slate**: A set of items presented together
+
+::: {.fragment}
+```text
+Slate S = [item₁, item₂, ..., itemₖ]
+```
+:::
+
+::: {.fragment}
+**New goal**: Maximize utility of the **entire slate**
+
+```text
+argmax U[S | user]
+  S
+```
+
+instead of
+
+```text
+argmax Σᵢ score(itemᵢ | user)
+  S
+```
+:::
+
+---
+
+## What is a Slate?
+
+A **slate** is a collection of items shown to a user **at once**:
+
+::: {.incremental}
+- **Homepage**: 10 items in "Recommended for You"
+- **Search results**: Top 20 results
+- **Email digest**: 5 movies this week
+- **Carousel**: 8 items in "Because you watched X"
+:::
+
+::: {.fragment}
+**Key property**: User sees all items **simultaneously** (or nearly so)
+:::
+
+---
+
+## Utility Function Components
+
+What should `U[S | user]` capture?
+
+::: {.incremental}
+1. **Relevance**: Items match user preferences
+2. **Diversity**: Items cover different aspects
+3. **Exploration**: Include some novel/uncertain items
+4. **Coverage**: Represent different genres/categories
+5. **Fairness**: Don't over-represent popular items
+6. **Business objectives**: Promote new releases, monetize
+:::
+
+---
+
+## Component 1: Relevance
+
+```text
+Relevance(S | user) = Σᵢ∈S P(user engages with i)
+```
+
+::: {.fragment}
+**Source**: Ranking model (MF, SASRec, LLM scores)
+
+```python
+relevance_scores = ranking_model.predict(user, items)
+slate_relevance = sum(relevance_scores[i] for i in slate)
+```
+:::
+
+::: {.fragment}
+**Trade-off**: Pure relevance → filter bubble
+:::
+
+---
+
+## Component 2: Diversity
+
+**Idea**: Items should be **different** from each other
+
+::: {.fragment}
+```text
+Diversity(S) = -Σᵢ,ⱼ∈S similarity(i, j)
+             = avgₖ distance(itemₖ, centroid(S))
+```
+:::
+
+::: {.fragment}
+**Example**: Genre diversity
+
+```python
+genres_in_slate = {item.genre for item in slate}
+diversity_score = len(genres_in_slate)
+```
+:::
+
+---
+
+## Diversity Example
+
+**High relevance, low diversity:**
+```text
+[Action, Action, Action, Action, Action]
+→ similarity = 1.0 for all pairs
+```
+
+::: {.fragment}
+**Balanced:**
+```text
+[Action, Comedy, Drama, Thriller, Sci-Fi]
+→ similarity ≈ 0.2 average
+```
+:::
+
+::: {.fragment}
+**How to measure?** Use item embeddings:
+```python
+diversity = -np.mean([
+    cosine_similarity(emb[i], emb[j])
+    for i, j in combinations(slate, 2)
+])
+```
+:::
+
+---
+
+## Component 3: Exploration vs. Exploitation
+
+**Exploitation**: Show items we're confident user will like
+
+**Exploration**: Show items to learn user preferences
+
+::: {.fragment}
+```text
+Exploration(S) = Σᵢ∈S uncertainty(i | user)
+```
+:::
+
+::: {.fragment}
+**Example**: Thompson Sampling
+- Sample scores from posterior distribution
+- Include items with high uncertainty
+:::
+
+---
+
+## Exploration Example
+
+**Pure exploitation** (all high-confidence):
+```text
+Item A: P(like) = 0.90 ± 0.02  ✓
+Item B: P(like) = 0.88 ± 0.01  ✓
+Item C: P(like) = 0.85 ± 0.03  ✓
+```
+
+::: {.fragment}
+**With exploration** (mix in uncertainty):
+```text
+Item A: P(like) = 0.90 ± 0.02  ✓
+Item B: P(like) = 0.88 ± 0.01  ✓
+Item D: P(like) = 0.75 ± 0.20  ← High uncertainty!
+```
+:::
+
+::: {.fragment}
+**Why?** Item D might be 0.95, and we learn for future!
+:::
+
+---
+
+## Component 4: Coverage
+
+**Goal**: Represent the breadth of the catalog
+
+::: {.fragment}
+```text
+Coverage(S) = |{categories represented in S}|
+```
+:::
+
+::: {.fragment}
+**Example**: For a movie slate
+
+```python
+categories = ["genre", "decade", "language", "director"]
+coverage = sum(
+    len({item[cat] for item in slate})
+    for cat in categories
+)
+```
+:::
+
+---
+
+## Putting It Together
+
+**Utility function** as weighted sum:
+
+```text
+U[S | user] = α·Relevance(S)
+            + β·Diversity(S)
+            + γ·Exploration(S)
+            + δ·Coverage(S)
+```
+
+::: {.fragment}
+**Hyperparameters** (α, β, γ, δ) control trade-offs:
+- High α → greedy relevance
+- High β → diverse but maybe less relevant
+- High γ → more exploration
+:::
+
+---
+
+## Better Example for Alice
+
+Recall Alice just watched **The Fellowship of the Ring**
+
+::: {.fragment}
+**Greedy ranking** (pure relevance):
+```text
+1. The Two Towers                 ⭐ 0.98
+2. The Return of the King         ⭐ 0.97
+3. The Hobbit...                  ⭐ 0.95
+...
+```
+:::
+
+::: {.fragment}
+**Slate-optimized** (relevance + diversity + exploration):
+```text
+1. The Two Towers                 ⭐ 0.98  (relevant sequel)
+2. Princess Bride                 ⭐ 0.82  (fantasy, different tone)
+3. Crouching Tiger, Hidden Dragon ⭐ 0.71  (adventure, exploration)
+4. Pan's Labyrinth                ⭐ 0.76  (fantasy, diverse style)
+5. The Dark Crystal               ⭐ 0.68  (explore old fantasy)
+```
+:::
+
+---
+
+## Expected Utility
+
+So far: deterministic utility `U[S | user]`
+
+::: {.fragment}
+**In practice**: We don't know user's response with certainty
+:::
+
+::: {.fragment}
+**Solution**: Optimize **expected utility**
+
+```text
+E[U[S | user]] = Σ_{outcomes} P(outcome | S, user) · U(outcome)
+```
+:::
+
+::: {.fragment}
+**Example outcomes**:
+- User clicks item i
+- User clicks nothing
+- User watches item i fully
+:::
+
+---
+
+## Slate Optimization Algorithms
+
+**Problem**: Finding optimal slate is **combinatorial**
+
+::: {.fragment}
+```text
+|catalog| = 10,000 items
+|slate| = 10 items
+
+Possible slates = C(10000, 10) ≈ 2.6 × 10^36
+```
+:::
+
+::: {.fragment}
+**We need approximation algorithms!**
+:::
+
+---
+
+## Algorithm 1: Greedy Diversification
+
+**Idea**: Build slate one item at a time
+
+```python
+def greedy_diversification(candidates, k):
+    slate = []
+    slate.append(max(candidates, key=relevance_score))
+
+    for _ in range(k - 1):
+        def marginal_gain(item):
+            return (relevance(item)
+                    + diversity_boost(item, slate))
+
+        next_item = max(candidates - slate, key=marginal_gain)
+        slate.append(next_item)
+
+    return slate
+```
+
+---
+
+## Algorithm 2: MMR (Maximal Marginal Relevance)
+
+**Carbonell & Goldstein (1998)**
+
+```text
+MMR = argmax [λ·Sim(item, query)
+        item      - (1-λ)·max_{j∈slate} Sim(item, j)]
+```
+
+::: {.fragment}
+**Parameters**:
+- λ = 1: pure relevance (greedy)
+- λ = 0: pure diversity (novelty)
+- λ = 0.7: typical balanced choice
+:::
+
+---
+
+## MMR Example
+
+**Step 1**: Pick most relevant item
+```text
+Item A: Sim(A, query) = 0.95  ← Select
+```
+
+::: {.fragment}
+**Step 2**: Pick item balancing relevance & diversity
+```text
+Item B: 0.7×0.92 - 0.3×Sim(B,A) = 0.7×0.92 - 0.3×0.85 = 0.389
+Item C: 0.7×0.89 - 0.3×Sim(C,A) = 0.7×0.89 - 0.3×0.45 = 0.488 ← Select
+```
+:::
+
+::: {.fragment}
+**Result**: Item C has lower relevance but higher diversity!
+:::
+
+---
+
+## Algorithm 3: Submodular Optimization
+
+**Key idea**: If `U[S]` is **submodular**, greedy gives 1 - 1/e ≈ 63% optimality
+
+::: {.fragment}
+**Submodularity**: Diminishing returns
+
+```text
+U[S ∪ {i}] - U[S] ≥ U[T ∪ {i}] - U[T]  for S ⊆ T
+```
+:::
+
+::: {.fragment}
+**Many utility functions are submodular**:
+- Coverage (adding item increases coverage less over time)
+- Diversity (marginal diversity decreases)
+:::
+
+---
+
+## Algorithm 4: Learning to Rank Slates
+
+**Idea**: Train a model to predict slate quality directly
+
+::: {.fragment}
+**Approach**:
+1. Collect data: (user, slate) → engagement
+2. Train model: `f(user, slate) → expected_clicks`
+3. Use model to score candidate slates
+:::
+
+::: {.fragment}
+**Challenge**: Huge slate space → need smart sampling
+:::
+
+---
+
+## Slate Recommendation with RL
+
+**Reinforcement Learning formulation**:
+
+- **State**: User features, context
+- **Action**: Select slate S
+- **Reward**: User engagement (clicks, watch time)
+
+::: {.fragment}
+**SlateQ** (Ie et al., 2019):
+- Decompose slate value into item contributions
+- Q(s, [i₁, ..., iₖ]) = Σⱼ Qⱼ(s, iⱼ | i₁, ..., iⱼ₋₁)
+:::
+
+---
+
+## Position Bias
+
+**Problem**: Item position affects engagement!
+
+::: {.fragment}
+```text
+Position 1: 10% click-through rate
+Position 5: 3% click-through rate
+Position 10: 1% click-through rate
+```
+:::
+
+::: {.fragment}
+**Solution**: Account for position in utility
+
+```python
+def slate_utility(slate):
+    return sum(
+        position_weight[i] * relevance[item]
+        for i, item in enumerate(slate)
+    )
+```
+:::
+
+---
+
+## Back to Alice: Full Example
+
+**Input**: Alice's profile after watching LOTR
+
+::: {.fragment}
+**Candidate pool** (top 100 by relevance)
+:::
+
+::: {.fragment}
+**Greedy slate** (top-10 by score):
+```text
+All LOTR/Tolkien → Diversity = 0.1
+Expected engagement = 5.2 clicks
+```
+:::
+
+::: {.fragment}
+**Optimized slate** (MMR with λ=0.7):
+```text
+Mix of fantasy, adventure, drama → Diversity = 0.7
+Expected engagement = 6.1 clicks
+```
+:::
+
+::: {.fragment}
+**Why better?** User gets bored of same content!
+:::
+
+---
+
+## Evaluation Metrics
+
+**Beyond ranking metrics** (NDCG, Recall@K):
+
+| Metric | Description |
+|--------|-------------|
+| **Intra-list diversity** | Avg pairwise distance in slate |
+| **Coverage@K** | % of catalog covered in top K slates |
+| **Click-through rate** | % of slates with ≥1 click |
+| **Engagement time** | Total time spent on slate |
+| **Satisfaction** | Explicit user feedback |
+
+---
+
+## Online A/B Testing
+
+**The ultimate test**: Deploy and measure!
+
+::: {.fragment}
+**Experiment setup**:
+- Control: Greedy ranking (top-K by score)
+- Treatment: Slate optimization (MMR, λ=0.7)
+:::
+
+::: {.fragment}
+**Metrics**:
+- Click-through rate (CTR)
+- Conversion rate
+- Session duration
+- User satisfaction surveys
+:::
+
+---
+
+## Research Frontiers
+
+::: {.incremental}
+1. **Contextual slates**: Time of day, device, location
+2. **Multi-objective optimization**: Pareto frontiers
+3. **Fairness in slates**: Provider diversity, demographic balance
+4. **Long-term user satisfaction**: Beyond immediate clicks
+5. **Slate generation** (next slides!): Move from optimization to generation
+:::
+
+---
+
+## From Optimization to Generation {.center}
+
+**So far**: Optimize slate from candidate pool
+
+**Next**: **Generate** the entire recommendation surface
+
+→ See `slides/06_generative_pages.qmd`
+
+---
+
+## Key Takeaways
+
+::: {.incremental}
+1. **Greedy ranking is suboptimal** for multi-item displays
+2. **Slates require utility functions** with multiple objectives
+3. **Diversity, exploration, coverage** matter alongside relevance
+4. **Efficient algorithms exist** (MMR, submodular optimization)
+5. **Position bias** must be accounted for
+6. **A/B testing** validates improvements
+:::
+
+---
+
+## Recommended Reading
+
+**Foundational**:
+- Carbonell & Goldstein (1998): "The Use of MMR..."
+- Ziegler et al. (2005): "Improving Recommendation Lists Through Topic Diversification"
+
+**Modern**:
+- Ie et al. (2019): "SlateQ: Tractable Decomposition for RL with Slates"
+- Chen et al. (2018): "Top-K Off-Policy Correction"
+
+**Survey**:
+- Castells et al. (2021): "Diversity and Novelty in Recommender Systems"
+
+---
+
+## Next: Generative Pages
+
+We've learned to **optimize** slates from candidates.
+
+::: {.fragment}
+**Next level**: **Generate** entire page layouts!
+
+- Not just which items
+- Also: tile types, headers, sizes, positions
+:::
+
+::: {.fragment}
+→ Continue to `slides/07_generative_pages.qmd`
+:::
+

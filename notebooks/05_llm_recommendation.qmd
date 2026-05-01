@@ -1,5 +1,5 @@
 ---
-title: 'Part IV: LLMs for Recommendation'
+title: 'Part IV: LLMs for Recommendations'
 subtitle: Zero-Shot Recommendation and Metadata Generation
 jupyter:
   jupytext:
@@ -329,7 +329,7 @@ top_movies_llm
 rec_with_posters = top_movies_llm.join(posters, on="movie_id", how="inner")
 rec_poster_paths = rec_with_posters["poster_path"].to_list()
 
-display(Markdown(f"**Top {len(rec_poster_paths)} Recommendations**:"))
+display(Markdown(f"**Recommended for Alice**"))
 tmdb_images(rec_poster_paths)
 ```
 
@@ -821,213 +821,18 @@ for movie in top_similar.to_dicts():
 
 **True cold start solved** using LLM's ability to understand and generate metadata from raw content!
 
-# Conversational Recommendation
-
-**Scenario**: User describes their current state/preference in natural language.
-
-## User Query Example
-
-```{python}
-#| label: user-query
-user_query = "I'm tired after a long day. Want something calm, uplifting, maybe a bit nostalgic. No intense action or horror."
-
-display(Markdown(f"**User Query:** _{user_query}_"))
-```
-
-## LLM-Powered Filtering
-
-```{python}
-#| label: conversational-filtering
-# Prepare movie catalog for the prompt
-catalog_text = enriched_df.select(['title', 'genres', 'mood']).head(10).to_pandas().to_string(index=False)
-
-# Prompt for filtering
-filtering_prompt = f"""User preference: "{user_query}"
-
-Movie catalog:
-{catalog_text}
-
-Task: Based on the user's preference, select the top 3 movies that best match.
-Consider: mood, genres, and the user's desire for calm, uplifting, nostalgic content.
-
-Output format (one movie per line):
-- [Movie Title] - [Brief reason]
-"""
-
-display(Markdown("**Prompt:**"))
-display(Markdown(f"```\n{filtering_prompt}\n```"))
-
-filtered_response = ollama_generate(
-    filtering_prompt,
-    model=LLM_MODEL,
-    temperature=0.5,
-    max_tokens=300
-)
-display(Markdown("**LLM-Filtered Recommendations:**"))
-display(Markdown(filtered_response))
-```
-
-**Advantages over traditional filtering:**
-- Natural language interface
-- Captures nuanced preferences ("a bit nostalgic")
-- Can reason about implicit constraints ("no intense action")
-
-# Evaluation Challenges
-
-## Offline vs. Online Metrics
-
-**Offline (traditional):**
-- Recall@K, NDCG@K
-- Require historical interaction data
-
-**Online (for LLM methods):**
-- Click-through rate (CTR)
-- Watch time / engagement
-- User satisfaction surveys
-
-**Problem**: LLM recommendations may **rank differently** but still be **relevant**!
-
-### Offline Metric Limitation Example
-
-```{python}
-#| label: evaluation-recall
-
-# Traditional ground truth: Alice's next watched movie
-alice_next_movie = (
-    ratings
-    .filter(pl.col("user_id") == alice_id)
-    .sort("timestamp")
-    .tail(1)
-    .join(movies, on="movie_id")
-)
-
-# LLM recommendation list (from earlier embedding-based approach)
-llm_recs = top_movies_llm["movie_id"].to_list()
-
-# Check if actual movie is in LLM recommendations
-actual_movie_id = alice_next_movie['movie_id'][0]
-hit = actual_movie_id in llm_recs
-
-print(f"Did LLM recommend this movie? {hit}")
-print(f"Recall@10: {1.0 if hit else 0.0}")
-```
-
-```{python}
-#| label: display-actual-next-movie
-
-alice_next_movie.select(["title", "genres"])
-```
-
-**Key Issue**: Even if LLM didn't predict the *exact* next movie, its suggestions might be **equally good alternatives**!
-
-### Diversity and Novelty Metrics
-
-```{python}
-#| label: evaluation-diversity
-from recsys_genai import diversity_at_k
-
-# Prepare genre sets (genres is now a list[str])
-movie_genres_dict = {
-    row['movie_id']: set(row['genres']) if row['genres'] and len(row['genres']) > 0 else set()
-    for row in movies.to_dicts()
-}
-
-# Compute diversity of LLM recommendations
-llm_diversity = diversity_at_k(llm_recs, movie_genres_dict, k=10)
-
-# Compare with popularity-based baseline
-popular_movies = (
-    ratings
-    .group_by("movie_id")
-    .agg(pl.len().alias("count"))
-    .sort("count", descending=True)
-    .head(10)
-    ['movie_id']
-    .to_list()
-)
-
-popular_diversity = diversity_at_k(popular_movies, movie_genres_dict, k=10)
-
-display(Markdown(f"""
-**Diversity Comparison:**
-
-- **LLM Recommendation Diversity:** {llm_diversity:.4f}
-- **Popular Baseline Diversity:** {popular_diversity:.4f}
-"""))
-```
-
-**Insight**: LLM recommendations often have **higher diversity** than popularity-based methods!
-
-# Hybrid Approach: Combining CF + LLM
-
-Best of both worlds:
-
-1. **Collaborative Filtering**: Captures implicit patterns from interactions
-2. **LLM**: Handles cold-start, adds semantic understanding
-
-## Simple Hybrid Strategy
-
-```{python}
-#| label: hybrid-approach
-# Get CF recommendations (from EASE/MF)
-# Get LLM recommendations (from embeddings)
-# Combine with weighted score
-
-cf_scores = {mid: 0.8 for mid in popular_movies[:5]}  # Mock CF scores
-llm_scores = {mid: 0.6 for mid in llm_recs[:5]}  # Mock LLM scores
-
-# Merge
-all_movie_ids = set(cf_scores.keys()) | set(llm_scores.keys())
-hybrid_scores = {}
-
-for mid in all_movie_ids:
-    cf_score = cf_scores.get(mid, 0.0)
-    llm_score = llm_scores.get(mid, 0.0)
-
-    # Weighted combination
-    hybrid_scores[mid] = 0.7 * cf_score + 0.3 * llm_score
-
-# Top-10 hybrid
-hybrid_top = sorted(hybrid_scores.items(), key=lambda x: x[1], reverse=True)[:10]
-hybrid_movie_ids = [mid for mid, _ in hybrid_top]
-```
-
-```{python}
-#| label: display-hybrid-recommendations
-
-hybrid_movies = movies.filter(pl.col("movie_id").is_in(hybrid_movie_ids)).select(["title", "genres"])
-hybrid_movies
-```
-
-```{python}
-#| label: display-hybrid-posters
-
-# Display posters for hybrid recommendations
-hybrid_with_posters = (
-    movies
-    .filter(pl.col("movie_id").is_in(hybrid_movie_ids))
-    .join(posters, on="movie_id", how="inner")
-)
-hybrid_poster_paths = hybrid_with_posters["poster_path"].to_list()
-
-display(Markdown(f"**Hybrid Recommendations**:"))
-tmdb_images(hybrid_poster_paths)
-```
 
 # Key Takeaways
 
-- **Zero-Shot Recommendation**: LLMs can recommend without training data
-- **Metadata Enrichment**: LLMs generate tags, moods, themes
-- **Conversational Interface**: Natural language queries unlock new UX
-- **Evaluation is Hard**: Traditional metrics may not capture LLM value
-- **Hybrid Models**: Combine CF (patterns) + LLM (semantics)
+- **Zero-Shot Recommendation**: LLMs can recommend without training data by leveraging semantic understanding
+- **Cold-Start Problem Solved**: Generate metadata for completely unknown content (videos, podcasts, articles)
+- **Metadata Enrichment**: LLMs generate rich descriptions across multiple dimensions (mood, audience, plot)
+- **Multi-Dimensional Similarity**: Different aspects (mood, audience, plot) yield different recommendations
+- **Semantic Embeddings**: Capture nuanced relationships beyond keyword matching
 
 **Important Papers:**
 
-- **P5**: Treats recommendation as sequence-to-sequence task
-- **LLMRec**: Uses LLM as ranker for candidate items
-- **ChatRec**: Conversational recommendation with LLMs
+- **P5**: Treats recommendation as sequence-to-sequence task [@geng2022recommendation]
+- **LLMRec**: Uses LLM as ranker for candidate items [@hou2023large]
 
-**Next**: Part V - Generating entire recommendation pages!
-
-From ranking items → generating layouts
+**Next**: Part VI - Conversational recommendation with keyphrases!

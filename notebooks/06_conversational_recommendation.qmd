@@ -1,0 +1,541 @@
+---
+title: 'Part VI: Conversational Recommendation with Keyphrases'
+subtitle: Keyphrase-Based Semantic Search and LLM Ranking
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .qmd
+      format_name: quarto
+      format_version: '1.0'
+      jupytext_version: 1.19.1
+  kernelspec:
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
+execute:
+  output: text
+---
+
+# Introduction
+
+This notebook demonstrates an advanced conversational recommendation pipeline using **keyphrases** as semantic intermediaries. The system follows a **retrieval → ranking** architecture: first, we use fast vector similarity search to retrieve candidate items, then we apply an LLM to re-rank and select the best matches.
+
+**Note:** This is a **single-turn query demo** that processes one user query and returns immediate recommendations. It does not implement multi-turn conversational interaction where the system asks follow-up questions or refines preferences over multiple exchanges.
+
+**Pipeline Overview:**
+
+1. Generate keyphrases for each movie using LLM
+2. Embed all keyphrases and store in vector database
+3. Convert user queries → keyphrases describing desired movies
+4. Retrieve similar keyphrases → aggregate to candidate movies
+5. Use LLM to rank candidates based on user query
+6. Display recommendations with posters
+
+**Why Keyphrases?**
+
+- **Richer Semantics**: Capture multiple aspects (mood, themes, style, audience)
+- **Better Retrieval**: More query-keyphrase matches than query-movie matches
+- **Interpretability**: Understand *why* a movie was recommended
+- **Flexibility**: Different keyphrases match different user needs
+
+**Related Work:**
+
+This approach combines ideas from conversational recommendation, multi-vector retrieval, and retrieval-augmented generation:
+
+- **Retrieval-Augmented Generation (RAG)**: @lewis2020retrieval introduced RAG for knowledge-intensive NLP tasks, combining parametric (LLM) and non-parametric (retrieval) memory—our pipeline applies this retrieval→generation pattern to recommendations
+- **Conversational RecSys**: @zhou2020survey surveys conversational recommender systems that use natural language to understand user preferences
+- **Multi-vector Retrieval**: @khattab2020colbert introduced ColBERT, using multiple contextualized embeddings per document for late interaction—our keyphrase approach applies similar principles with multiple semantic representations per item
+
+```{python}
+#| label: imports
+# Standard library imports
+import itertools
+import json
+import os
+from collections import Counter, defaultdict
+
+# Third-party imports
+import numpy as np
+import polars as pl
+from IPython.display import Markdown, display
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Local application imports
+from recsys_genai import (
+    check_ollama_available,
+    load_movielens,
+    ollama_embed,
+    ollama_generate,
+    ollama_generate_json,
+)
+from recsys_genai.llm_utils import retry
+from recsys_genai.notebook_utils import ollama_model_link, show_prompt, show_response, tmdb_images
+```
+
+```{python}
+#| label: setup
+
+# Configuration: LLM models
+LLM_MODEL = os.getenv("LLM_MODEL", "ministral-3:3b")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v2-moe")
+
+movies, ratings, tags, links = load_movielens("../data")
+posters = pl.read_parquet("../data/shared/posters.parquet")
+
+pl.Config(
+    fmt_str_lengths=50,
+    tbl_rows=20,
+)
+
+Markdown(
+f"""\
+**Selected models:**
+
+- Generative: {ollama_model_link(LLM_MODEL)}
+- Embedding: {ollama_model_link(EMBED_MODEL)}
+"""
+)
+```
+
+# Prepare Movie Sample
+
+We'll select a sample of movies for keyphrase generation:
+
+```{python}
+#| label: select-movie-sample
+
+# Get most-rated movies to ensure we have familiar content
+most_rated_movies = (
+    ratings
+    .group_by("movie_id")
+    .len("num_ratings")
+    .top_k(500, by="num_ratings")
+)
+
+sample_movies = (
+    movies
+    .join(most_rated_movies, on="movie_id", how="semi")
+    .sample(n=100, seed=42)
+)
+
+display(Markdown(f"**Selected {len(sample_movies)} movies** for keyphrase generation"))
+sample_movies.select("title", "genres").head(10)
+```
+
+# Generate Keyphrases for Each Movie
+
+We'll use the LLM to generate descriptive keyphrases for each movie:
+
+```{python}
+#| label: keyphrase-generation-function
+
+@retry(3, exceptions=(ValueError, json.JSONDecodeError))
+def generate_movie_keyphrases(title, genres):
+    """Generate keyphrases describing a movie.
+
+    Keyphrases capture: mood, themes, style, audience, plot elements, emotions, etc.
+
+    Returns:
+        dict with 'keyphrases' key containing list of strings
+    """
+    prompt = f"""\
+You are a film expert. Generate 20-30 short keyphrases (1-4 words each) that describe this movie.
+
+Title: {title}
+Genres: {', '.join(genres) if genres else 'Unknown'}
+
+Include keyphrases for:
+- Mood/Atmosphere (e.g., "uplifting", "dark comedy", "suspenseful")
+- Themes (e.g., "family bonds", "redemption", "coming-of-age")
+- Visual Style (e.g., "visually stunning", "gritty realism")
+- Target Audience (e.g., "family-friendly", "thriller fans")
+- Emotions (e.g., "heartwarming", "tense", "inspiring")
+- Plot Elements (e.g., "time travel", "heist", "love triangle")
+- Similar Movies/Genres (e.g., "like Inception", "sci-fi thriller")
+
+Output ONLY valid JSON:
+{{
+  "keyphrases": ["phrase1", "phrase2", ..., "phrase8"]
+}}
+"""
+    result = ollama_generate_json(prompt, model=LLM_MODEL, temperature=0.5)
+    if "keyphrases" not in result or not isinstance(result["keyphrases"], list):
+        raise ValueError("Invalid keyphrase format")
+    if len(result["keyphrases"]) < 15:
+        raise ValueError(f"Not enough keyphrases: {len(result['keyphrases'])}")
+    return result
+
+# Test with one movie
+test_movie = sample_movies.to_dicts()[0]
+test_result = generate_movie_keyphrases(test_movie['title'], test_movie['genres'])
+display(Markdown(f"**Test: {test_movie['title']}**"))
+show_response(test_result)
+```
+
+```{python}
+#| label: batch-generate-keyphrases
+
+# Generate keyphrases for all sampled movies
+all_keyphrases = []
+print(f"Generating keyphrases for {len(sample_movies)} movies...")
+
+for i, movie in enumerate(sample_movies.to_dicts()):
+    print(f"  [{i+1}/{len(sample_movies)}] {movie['title']}")
+    result = generate_movie_keyphrases(movie['title'], movie['genres'])
+    all_keyphrases.append(result)
+
+keyphrases_df = pl.DataFrame(all_keyphrases)
+print("\n✅ Keyphrase generation complete!")
+
+# Combine with movie data
+enriched_movies = pl.concat([sample_movies, keyphrases_df], how="horizontal")
+
+# Display stats
+total_keyphrases = sum(len(kp) for kp in enriched_movies["keyphrases"].to_list())
+avg_keyphrases = total_keyphrases / len(enriched_movies)
+display(Markdown(f"""
+**Keyphrase Statistics:**
+
+- Total movies: {len(enriched_movies)}
+- Total keyphrases: {total_keyphrases:,}
+- Average keyphrases per movie: {avg_keyphrases:.1f}
+"""))
+```
+
+```{python}
+#| label: display-keyphrase-examples
+
+# Show examples of generated keyphrases
+display(Markdown("### Example Keyphrases for 3 Movies\n"))
+
+for movie_dict in enriched_movies.head(3).to_dicts():
+    phrases = movie_dict['keyphrases'][:10]  # Show first 10
+    display(Markdown(f"**{movie_dict['title']}**  \n{', '.join(phrases)}, ...\n"))
+```
+
+# Build Keyphrase Vector Store
+
+Now we'll embed all keyphrases and create a searchable index:
+
+```{python}
+#| label: build-keyphrase-index
+
+# Create a flat list of all keyphrases with movie associations
+keyphrase_index = []
+
+for movie_dict in enriched_movies.to_dicts():
+    movie_id = movie_dict['movie_id']
+    title = movie_dict['title']
+    for phrase in movie_dict['keyphrases']:
+        keyphrase_index.append({
+            'movie_id': movie_id,
+            'title': title,
+            'keyphrase': phrase
+        })
+
+keyphrase_df = pl.DataFrame(keyphrase_index)
+display(Markdown(f"**Created keyphrase index with {len(keyphrase_df):,} entries**"))
+
+keyphrase_df.head(20)
+```
+
+```{python}
+#| label: embed-all-keyphrases
+
+# Embed all keyphrases in batches
+print("Embedding keyphrases...")
+all_keyphrase_texts = keyphrase_df['keyphrase'].to_list()
+
+batch_size = 50
+keyphrase_embeddings = []
+
+for i, batch in enumerate(itertools.batched(all_keyphrase_texts, batch_size)):
+    if i % 10 == 0:
+        print(f"  Batch {i+1}/{len(all_keyphrase_texts)//batch_size + 1}")
+    batch_embeddings = ollama_embed(list(batch), model=EMBED_MODEL)
+    keyphrase_embeddings.extend(batch_embeddings)
+
+keyphrase_matrix = np.array(keyphrase_embeddings)
+print(f"\n✅ Embedding complete!")
+print(f"   Shape: {keyphrase_matrix.shape}")
+```
+
+# User Query → Keyphrase Generation
+
+Convert natural language queries into descriptive keyphrases:
+
+```{python}
+#| label: query-keyphrase-function
+
+@retry(3, exceptions=(ValueError, json.JSONDecodeError))
+def generate_query_keyphrases(query):
+    """Convert user query into keyphrases describing desired movie.
+
+    Args:
+        query: Natural language description of what user wants
+
+    Returns:
+        dict with 'keyphrases' key containing list of strings
+    """
+    prompt = f"""\
+You are a movie recommendation expert. A user describes what they want to watch.
+Generate 8-12 short keyphrases (1-4 words each) that describe the type of movie they're looking for.
+
+User Query: "{query}"
+
+Consider their mood, preferences, constraints, and desires.
+Include keyphrases for mood, themes, style, audience, emotions, and plot elements.
+
+Output ONLY valid JSON:
+{{
+  "keyphrases": ["phrase1", "phrase2", ..., "phrase7"]
+}}
+"""
+    result = ollama_generate_json(prompt, model=LLM_MODEL, temperature=0.5)
+    if "keyphrases" not in result or not isinstance(result["keyphrases"], list):
+        raise ValueError("Invalid keyphrase format")
+    if len(result["keyphrases"]) < 5:
+        raise ValueError(f"Not enough keyphrases: {len(result['keyphrases'])}")
+    return result
+
+# Test with example query
+user_query = "I'm tired after a long day. Want something calm, uplifting, maybe a bit nostalgic. No intense action or horror."
+# user_query = "Looking for something funny and lighthearted for a date night. Nothing too long or serious."
+
+query_result = generate_query_keyphrases(user_query)
+query_phrases = query_result['keyphrases']
+
+display(Markdown(f"""\
+**User Query:**
+_{user_query}_
+
+**Query keyphrases:**
+{', '.join(query_phrases)}
+"""))
+```
+
+# Similarity Search & Movie Aggregation
+
+Now embed the query keyphrases to enable similarity comparison:
+
+```{python}
+#| label: embed-query-keyphrases
+
+query_embeddings = ollama_embed(query_phrases, model=EMBED_MODEL)
+query_matrix = np.array(query_embeddings)
+
+print(f"Query embedding matrix shape: {query_matrix.shape}")
+print(f"  - {len(query_phrases)} query keyphrases")
+print(f"  - {query_matrix.shape[1]} dimensions per embedding")
+```
+
+Compute similarities and find the best matching movie keyphrases for each query keyphrase:
+
+```{python}
+#| label: compute-keyphrase-similarities
+
+# Compute similarities between query phrases and all movie keyphrases
+# Shape: (num_query_phrases, num_all_keyphrases)
+similarities = cosine_similarity(query_matrix, keyphrase_matrix)
+
+print(f"Similarity matrix shape: {similarities.shape}")
+print(f"  - {similarities.shape[0]} query keyphrases")
+print(f"  - {similarities.shape[1]} movie keyphrases")
+
+top_k_phrases_per_query = 30
+
+# For each query phrase, get top-k similar movie keyphrases
+# Track: query phrase, movie phrase, movie_id, similarity
+all_matches = []
+
+for query_idx, query_phrase in enumerate(query_phrases):
+    # Get top matches for this query phrase
+    phrase_similarities = similarities[query_idx]
+    top_indices = np.argsort(phrase_similarities)[-top_k_phrases_per_query:][::-1]
+
+    for idx in top_indices:
+        # Convert numpy int to Python int for Polars indexing
+        idx_int = int(idx)
+        movie_id = keyphrase_df['movie_id'][idx_int]
+        movie_phrase = keyphrase_df['keyphrase'][idx_int]
+        similarity_score = float(phrase_similarities[idx])
+
+        all_matches.append({
+            'query_phrase': query_phrase,
+            'movie_phrase': movie_phrase,
+            'movie_id': movie_id,
+            'similarity': similarity_score
+        })
+
+matches_df = pl.DataFrame(all_matches)
+print(f"\nTotal matches: {len(matches_df)}")
+```
+
+Group matches by movie and find the best matching keyphrases for each. The **matching_keyphrases** column shows which movie keyphrases matched the user's query:
+
+```{python}
+#| label: aggregate-top-movies
+
+top_k_movies = 10
+
+# For each movie, get the best matching keyphrases
+movie_best_matches = (
+    matches_df
+    .sort(['movie_id', 'similarity'], descending=[False, True])
+    .group_by('movie_id')
+    .agg([
+        pl.col('similarity').max().alias('max_similarity'),
+        pl.col('movie_phrase').first().alias('top_movie_phrase'),
+        pl.col('query_phrase').first().alias('top_query_phrase'),
+        # Collect top 3 matching movie keyphrases
+        pl.col('movie_phrase').head(3).alias('matching_keyphrases')
+    ])
+    .sort('max_similarity', descending=True)
+    .head(top_k_movies)
+)
+
+# Join with movie titles
+candidate_movies = (
+    movie_best_matches
+    .join(movies.select(['movie_id', 'title']), on='movie_id')
+    .select(['movie_id', 'title', 'matching_keyphrases', 'max_similarity'])
+)
+
+display(Markdown(f"### Top {len(candidate_movies)} Candidate Movies from Keyphrase Search\n"))
+candidate_movies
+```
+
+# LLM Ranking
+
+Use the LLM to re-rank and filter candidates based on the original user query:
+
+```{python}
+#| label: llm-ranking-function
+
+@retry(3, exceptions=(ValueError, json.JSONDecodeError))
+def rank_movies_with_llm(query, candidate_movies_df):
+    """Use LLM to rank candidate movies based on user query.
+
+    Args:
+        query: Original natural language query
+        candidate_movies_df: DataFrame with candidate movies (must have 'movie_id' and 'title' columns)
+
+    Returns:
+        List of dicts with ranked movies and explanations
+    """
+    # Prepare movie list for prompt
+    movie_list = []
+    for movie_dict in candidate_movies_df.to_dicts():
+        movie_list.append(f"movie_id: {movie_dict['movie_id']}, title: {movie_dict['title']}")
+
+    movies_text = '\n'.join(movie_list)
+
+    prompt = f"""\
+You are a movie recommendation expert. A user wants a movie recommendation.
+
+User Query: "{query}"
+
+Candidate Movies:
+{movies_text}
+
+Task:
+1. Select the top 3 movies that best match the user's query
+2. Rank them from best to worst (1 = best)
+3. Provide a brief reason for each recommended movie
+4. Only include movies that are truly a good match
+
+Output ONLY valid JSON in this format:
+{{
+  "recommendations": [
+    {{
+      "rank": 1,
+      "movie_id": 123,
+      "reason": "Brief explanation of why this matches the query"
+    }},
+    ...
+  ]
+}}
+"""
+
+    result = ollama_generate_json(prompt, model=LLM_MODEL, temperature=0.3)
+    if "recommendations" not in result or not isinstance(result["recommendations"], list):
+        raise ValueError("Invalid ranking format")
+
+    return result
+
+# Rank the candidates
+ranking_result = rank_movies_with_llm(user_query, candidate_movies)
+
+display(Markdown("### LLM-Ranked Recommendations\n"))
+show_response(ranking_result)
+```
+
+Extract the ranked movie IDs and prepare the final recommendations:
+
+```{python}
+#| label: extract-final-recommendations
+
+final_recommendations = (
+    pl.DataFrame(ranking_result['recommendations'])
+    .join(movies.select("movie_id", "title"), on="movie_id", maintain_order="left")
+)
+final_recommendations
+```
+
+# Display with Posters
+
+Finally, show the recommendations with movie posters:
+
+```{python}
+#| label: display-recommendations-with-posters
+
+# Remind us with the query
+display(Markdown(f"""\
+**User Query:**
+_{user_query}_
+"""))
+
+# Join with posters
+recs_with_posters = (
+    final_recommendations
+    .join(posters, on='movie_id', how='inner', maintain_order="left")
+)
+
+# Display each recommendation with poster
+display(Markdown("## 🎬 Your Personalized Recommendations\n"))
+
+for rec in recs_with_posters.to_dicts():
+    display(Markdown(f"### {rec['rank']}. {rec['title']}\n"))
+    display(Markdown(f"_{rec['reason']}_\n"))
+    display(tmdb_images([rec['poster_path']]))
+    display(Markdown("---\n"))
+```
+
+**Try these example queries:**
+
+- "I want a mind-bending thriller that makes me think. Something with plot twists and mystery."
+- "Something uplifting and inspiring for a Sunday afternoon. Family-friendly."
+- "Dark, gritty crime drama with complex characters."
+- "Romantic comedy that's actually funny, not too cheesy."
+
+# Key Takeaways
+
+**Why Multi-Vector Keyphrases Work:**
+
+- **Richer matching**: 20-30 keyphrase embeddings per movie vs. 1 single embedding → better retrieval recall
+- **Explainability**: Show which movie aspects matched the user's query
+- **Semantic bridge**: LLM-generated keyphrases translate user intent into searchable item features
+- **Inspired by ColBERT** [@khattab2020colbert]: Multiple embeddings per item with late interaction, but using interpretable semantic phrases
+
+**Efficient Retrieval → Ranking Architecture:**
+
+1. **Fast retrieval**: Vector similarity search finds 10 candidates from keyphrase matches
+2. **LLM ranking**: Re-rank only the candidates (not entire catalog) for final top 3
+
+**Limitations & Extensions:**
+
+- This is a **single-turn demo**, not multi-turn conversation
+- Could add: keyphrase weighting, hybrid scoring with collaborative filtering, personalization from user history, temporal/trending keyphrases
+
+**Architecture**: Combines ideas from RAG [@lewis2020retrieval], conversational recommender systems [@zhou2020survey], and multi-vector retrieval [@khattab2020colbert]
+```

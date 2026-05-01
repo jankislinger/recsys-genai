@@ -28,7 +28,7 @@ class SASRec(nn.Module):
         >>> seq = torch.randint(0, 100, (2, 50))  # batch_size=2, seq_len=50
         >>> logits = model(seq)
         >>> logits.shape
-        torch.Size([2, 50, 100])
+        torch.Size([2, 50, 101])
     """
 
     def __init__(
@@ -163,7 +163,8 @@ def train_sasrec(
         >>> targets = torch.randint(1, 100, (10,))
         >>> loader = DataLoader(TensorDataset(seqs, targets), batch_size=2)
         >>> model = SASRec(num_items=100, max_len=50, hidden_size=32)
-        >>> losses = train_sasrec(model, loader, num_epochs=1)
+        >>> losses = train_sasrec(model, loader, num_epochs=1)  # doctest: +ELLIPSIS
+        Epoch 1/1, Loss: ...
         >>> len(losses) == 1
         True
     """

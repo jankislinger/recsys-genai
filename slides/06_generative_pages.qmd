@@ -1,5 +1,5 @@
 ---
-title: "Part V: Generating Recommendation Pages"
+title: "Part VI: Generating Recommendation Pages"
 subtitle: "From Item Ranking to Experience Generation"
 format:
   revealjs:
@@ -8,21 +8,44 @@ format:
     incremental: false
 ---
 
-## The Final Frontier {.center}
+## Recap: From Items to Slates {.center}
+
+**Previous slides**: We learned to optimize **slates**
+
+::: {.fragment}
+```text
+U[slate | user] = α·Relevance + β·Diversity + γ·Exploration + ...
+```
+:::
+
+::: {.fragment}
+**This section**: Extend to entire **pages**
+
+```text
+U[page | user] = ?
+```
+:::
+
+---
+
+## The Journey So Far
 
 We've learned to:
 
-- ✓ Rank items (MF, EASE)
-- ✓ Model sequences (SASRec)
+- ✓ Rank items (MF, EASE, SASRec)
+- ✓ Model sequences (Transformers)
 - ✓ Use LLMs for semantics
+- ✓ Optimize slates (MMR, diversity, exploration)
 
+::: {.fragment}
 **Now**: Generate the entire recommendation **experience**
+:::
 
 ---
 
 ## What is a "Recommendation Page"?
 
-Not just a list — a **structured interface**
+Not just a single list — a **structured interface** with **multiple slates**
 
 ::: {.columns}
 ::: {.column width="50%"}
@@ -67,6 +90,64 @@ Not just a list — a **structured interface**
 
 ---
 
+## From Single Slate to Multiple Slates
+
+**Slate optimization** (previous slides):
+```text
+Maximize: U[slate | user]
+where slate = [item₁, item₂, ..., itemₖ]
+```
+
+::: {.fragment}
+**Page generation** (now):
+```text
+Maximize: U[page | user]
+where page = [tile₁, tile₂, ..., tileₙ]
+      tileᵢ = {type, header, slate of items}
+```
+:::
+
+::: {.fragment}
+**Key difference**: Each tile is itself a slate with metadata!
+:::
+
+---
+
+## Page Utility Function
+
+**Extending the slate utility**:
+
+```text
+U[page | user] = Σᵢ U[tileᵢ | user, tile₁, ..., tileᵢ₋₁]
+                 + Coherence(page)
+                 + Layout_Quality(page)
+```
+
+::: {.incremental}
+- **Tile utility**: Relevance + diversity within each tile
+- **Coherence**: Do tiles tell a story together?
+- **Layout quality**: Visual hierarchy, sizes, positioning
+:::
+
+---
+
+## What Makes a Good Page?
+
+**Within-tile optimization** (from slate optimization):
+- Relevance of items
+- Diversity within tile
+- Exploration vs. exploitation
+
+::: {.fragment}
+**Across-tile optimization** (new!):
+- **Tile diversity**: Different themes across tiles
+- **Coherence**: Tiles build on each other
+- **Coverage**: Represent different aspects of catalog
+- **Layout**: Visual balance, attention flow
+:::
+
+---
+
 ## Why Generate Pages?
 
 **Traditional approach:**
@@ -78,6 +159,7 @@ Not just a list — a **structured interface**
 - Not personalized to user state
 - Ignores catalog dynamics
 - Suboptimal real estate allocation
+- **Can't optimize across tiles**
 
 ---
 
@@ -114,6 +196,51 @@ Each tile is:
 
 ::: {.fragment}
 Same transformer architecture, different vocabulary!
+:::
+
+---
+
+## Optimization Problem: Slate vs. Page
+
+**Slate optimization** (previous):
+```text
+Given: candidate items C, slate size K
+Find: slate S ⊂ C, |S| = K
+Maximize: U[S | user]
+
+Challenge: Combinatorial (~10³ candidates → ~10² slates)
+Solution: MMR, greedy, submodular optimization
+```
+
+::: {.fragment}
+**Page generation** (now):
+```text
+Given: catalog, user context
+Find: sequence of tiles [(type₁, header₁, slate₁), ...]
+Maximize: U[page | user]
+
+Challenge: Compositional (~10⁶ possible pages)
+Solution: Autoregressive generation with transformers
+```
+:::
+
+---
+
+## Why Autoregressive Generation?
+
+**Slate optimization**: Discrete optimization over fixed set
+
+**Page generation**: Need to generate:
+1. Number of tiles (1-10)
+2. Each tile's type (carousel, grid, hero, ...)
+3. Each tile's header (text/theme)
+4. Each tile's items (from catalog)
+5. Layout properties (size, position)
+
+::: {.fragment}
+**Solution**: Generate sequentially, like language!
+
+`<tile1> → <tile2> → <tile3> → ... → <END>`
 :::
 
 ---
@@ -221,11 +348,41 @@ Bad page:
 3. Romantic comedies (sudden switch)
 ```
 
-**Solutions:**
+::: {.fragment}
+**Recall our utility function**:
+```text
+U[page | user] = Σᵢ U[tileᵢ] + Coherence(page) + Layout(page)
+```
+:::
 
-- **Diversity penalty**: Discourage similar tiles
-- **Coverage reward**: Ensure variety
-- **Position bias**: Earlier tiles get more attention
+---
+
+## Measuring Coherence
+
+**Coherence(page)** penalizes incoherent pages:
+
+::: {.incremental}
+- **Tile diversity**: `-λ · Σᵢ,ⱼ similarity(tileᵢ, tileⱼ)`
+- **Semantic flow**: `consistency(tile_themes)`
+- **Novelty decay**: Later tiles should add new information
+:::
+
+::: {.fragment}
+**Example**:
+```python
+def coherence(tiles):
+    # Penalize duplicate themes
+    theme_diversity = -sum(
+        cosine_sim(tiles[i].theme, tiles[j].theme)
+        for i, j in pairs(tiles)
+    )
+
+    # Reward semantic progression
+    flow = semantic_consistency([t.header for t in tiles])
+
+    return theme_diversity + flow
+```
+:::
 
 ---
 
@@ -242,24 +399,60 @@ Where do we get page layouts for training?
 - Reward pages that maximize diversity + relevance
 
 **Option 3**: Reinforcement Learning
-- Reward = user engagement
-- Train policy to generate high-reward pages
+- Reward = `U[page | user]` (our utility function!)
+- Train policy to generate high-utility pages
+- Optimize expected utility: `E[U[page | user]]`
+
+---
+
+## Training with Utility Functions
+
+**Supervised Learning**:
+```python
+# Generate page
+page = model.generate(user_context, catalog)
+
+# Compute utility (ground truth from engagement)
+utility = compute_utility(page, user, engagement_data)
+
+# Loss: MSE between predicted and actual utility
+loss = (model.predict_utility(page, user) - utility)²
+```
+
+::: {.fragment}
+**Reinforcement Learning**:
+```python
+# Generate page autoregressively
+page = []
+for t in range(max_tiles):
+    tile = policy.sample_tile(user, page_so_far)
+    page.append(tile)
+
+# Reward = utility function
+reward = U(page, user)  # α·Relevance + β·Diversity + ...
+policy.update(reward)
+```
+:::
 
 ---
 
 ## Evaluation Metrics
 
-**Traditional RecSys**: Recall@K, NDCG@K
+**Traditional RecSys**: Recall@K, NDCG@K (single slate)
 
-**Page Generation**: Need **multi-objective** metrics!
+**Page Generation**: Need **multi-objective** metrics that measure `U[page | user]`!
 
-| **Metric**            | **What it Measures**                           |
-|-----------------------|------------------------------------------------|
-| **Coverage**          | How many items appear across all tiles?        |
-| **Diversity**         | How different are the tiles?                   |
-| **Coherence**         | Do tiles tell a story?                         |
-| **Engagement**        | Click-through rate, watch time                 |
-| **Layout Quality**    | Balanced sizes, good visual hierarchy          |
+| **Metric**            | **What it Measures** | **Maps to** |
+|-----------------------|----------------------|-------------|
+| **Coverage**          | Items across all tiles | Catalog diversity |
+| **Tile Diversity**    | How different are tiles? | Coherence component |
+| **Coherence**         | Do tiles tell a story? | Coherence(page) |
+| **Engagement**        | CTR, watch time | Relevance proxy |
+| **Layout Quality**    | Visual hierarchy | Layout(page) |
+
+::: {.fragment}
+**Goal**: Metrics should reflect utility components!
+:::
 
 ---
 
@@ -290,6 +483,52 @@ Where do we get page layouts for training?
 - 3 tiles (not fixed!)
 - Personalized headers
 - Varying tile sizes
+
+---
+
+## Alice's Page: Utility Breakdown
+
+**Calculating U[page | Alice]**:
+
+```text
+Tile 1 utility:
+  Relevance: 0.92 (Pixar continuation)
+  Diversity: 0.60 (3 different movies)
+  → U[tile₁] = 0.85
+
+Tile 2 utility:
+  Relevance: 0.88 (similar to Up)
+  Diversity: 0.75 (8 varied items)
+  → U[tile₂] = 0.84
+
+Tile 3 utility:
+  Relevance: 0.70 (exploration: new releases)
+  Diversity: 0.50 (only 2 items)
+  → U[tile₃] = 0.65
+```
+
+---
+
+## Alice's Page: Full Utility
+
+**Continuing the calculation**:
+
+```text
+Within-tile utility: 0.85 + 0.84 + 0.65 = 2.34
+
+Coherence(page):
+  Theme diversity: 0.80 (Pixar → Similar → New)
+  Semantic flow: 0.75 (progressive exploration)
+  → Coherence = 0.78
+
+Layout quality:
+  Size balance: 0.85 (small → large → small)
+  Position flow: 0.90 (hero → carousel → banner)
+  → Layout = 0.88
+
+────────────────────────────────────
+U[page | Alice] = 2.34 + 0.78 + 0.88 = 4.00
+```
 
 ---
 
@@ -401,12 +640,40 @@ Let's share some designs!
 
 ---
 
+## The Progression: Items → Slates → Pages
+
+**Level 1: Item Ranking**
+```text
+Maximize: score(item | user)
+Output: Ranked list
+```
+
+::: {.fragment}
+**Level 2: Slate Optimization** (previous slides)
+```text
+Maximize: U[slate | user] = α·Relevance + β·Diversity + ...
+Output: Optimized set of items
+```
+:::
+
+::: {.fragment}
+**Level 3: Page Generation** (this section)
+```text
+Maximize: U[page | user] = Σᵢ U[tileᵢ] + Coherence + Layout
+Output: Sequence of tiles with metadata
+```
+:::
+
+---
+
 ## Key Takeaways
 
-1. **Pages are sequences** → Use autoregressive generation
-2. **Tiles are structured** → Need richer representations than items
-3. **Evaluation is multi-faceted** → Coverage, diversity, coherence, engagement
-4. **Hybrid approaches** → Generative + retrieval + rules
+1. **Pages extend slates** → From `U[S|user]` to `U[page|user]`
+2. **Pages are sequences** → Use autoregressive generation
+3. **Tiles are structured** → Need richer representations than items
+4. **Multi-level optimization** → Within-tile + across-tile utility
+5. **Evaluation is multi-faceted** → Coverage, diversity, coherence, engagement
+6. **Hybrid approaches** → Generative + retrieval + rules
 
 ::: {.fragment}
 **The future**: Personalized UIs generated end-to-end by transformers!
@@ -423,22 +690,24 @@ graph LR
     A[Matrix<br/>Factorization] --> B[EASE]
     B --> C[SASRec]
     C --> D[LLM<br/>Recommendation]
-    D --> E[Page<br/>Generation]
-    
+    D --> E[Slate<br/>Optimization]
+    E --> F[Page<br/>Generation]
+
     style A fill:#e8f4f8
     style B fill:#d1e7f0
     style C fill:#b9dae8
-    style D fill:#8ac0d8
-    style E fill:#72b3d0
+    style D fill:#a8d0e0
+    style E fill:#8ac0d8
+    style F fill:#72b3d0
 ```
 
-**A complete journey**: Classical → Sequential → Generative
+**A complete journey**: Classical → Sequential → Slates → Generative
 
 ---
 
 ## Next Steps & Resources
 
-See `slides/07_wrapup.qmd` for:
+See `slides/08_wrapup.qmd` for:
 
 - Research roadmap
 - Paper reading list
