@@ -83,27 +83,25 @@ print(f"Ratings: {len(ratings):,}")
 #| label: load-embeddings
 
 # Load pre-trained embeddings from Part I.b
-embeddings_dir = Path("data/embeddings")
+generated_data_dir = Path("..") / "data" / "generated"
+embeddings_file = generated_data_dir / "mf_embeddings.npz"
 
 # Check if embeddings exist
-embeddings_file = embeddings_dir / "mf_item_embeddings_64d.npy"
-mappings_file = embeddings_dir / "mappings.npz"
-
-if not embeddings_file.exists() or not mappings_file.exists():
+if not embeddings_file.exists():
     raise FileNotFoundError(
         f"Embeddings not found. Please run notebook 01b_foundations.qmd first!\n"
-        f"Expected files:\n"
+        f"Expected file:\n"
         f"  - {embeddings_file}\n"
-        f"  - {mappings_file}"
+        f"\n"
+        f"Make sure to run 01b_foundations.qmd with default settings (64 factors)\n"
+        f"or set MF_NUM_FACTORS=64 if using custom configuration."
     )
 
-# Load 64-dimensional embeddings (trained specifically for slate generation)
-item_embeddings_np = np.load(embeddings_file)
-
-# Load mappings from numpy archive
-mappings = np.load(mappings_file)
-item_ids = mappings['item_ids']
-item_indices = mappings['item_indices']
+# Load embeddings and mappings from single numpy archive
+data = np.load(embeddings_file)
+item_embeddings_np = data['embeddings']
+item_ids = data['item_ids']
+item_indices = data['item_indices']
 
 # Reconstruct item_to_idx dictionary
 item_to_idx = dict(zip(item_ids, item_indices))

@@ -41,23 +41,30 @@ import polars as pl
 import torch
 from IPython.display import Markdown, display
 from plotnine import *
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from scipy.sparse import coo_matrix
-from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 from recsys_genai.data_utils import create_user_item_matrix, load_movielens
 from recsys_genai.metrics import evaluate_ranking, ndcg_at_k, recall_at_k
 from recsys_genai.models import EASE, MatrixFactorization
+```
+
+```{python}
+#| label: setup
 
 theme_set(theme_minimal() + theme(
     plot_title=element_text(weight='bold', size=14),
-    axis_title=element_text(size=12)
+    axis_title=element_text(size=12),
+    figure_size=(8, 6),
 ))
 ```
 
 # Load Data
 
 ```{python}
-#| label: setup
+#| label: load-data
 
 movies, ratings, tags, links = load_movielens("../data")
 
@@ -155,22 +162,55 @@ rating_values = train_ratings['rating'].to_list()
 ## Train Matrix Factorization
 
 ```{python}
+#| label: mf-settings
+
+class MFSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix='MF_')
+
+    num_factors: int = Field(default=32, description="Dimensionality of latent factors")
+    learning_rate: float = Field(default=0.01, description="SGD learning rate")
+    reg: float = Field(default=0.01, description="L2 regularization parameter")
+    epochs: int = Field(default=20, description="Number of training epochs")
+    verbose: bool = Field(default=True, description="Print training progress")
+
+
+# Load settings (can be overridden by environment variables)
+settings = MFSettings()
+
+# Set random seed (always 42)
+np.random.seed(42)
+
+# Display training configuration
+config_lines = []
+for field_name, field_info in MFSettings.model_fields.items():
+    value = getattr(settings, field_name)
+    desc = field_info.description
+    config_lines.append(f"- {desc}: {value}")
+
+display(Markdown(f"""
+**Matrix Factorization Training Configuration:**
+
+{chr(10).join(config_lines)}
+"""))
+```
+
+```{python}
 #| label: train-mf
 
 mf_model = MatrixFactorization(
     num_users=len(user_to_idx),
     num_items=len(item_to_idx),
-    num_factors=20,
-    learning_rate=0.01,
-    reg=0.01
+    num_factors=settings.num_factors,
+    learning_rate=settings.learning_rate,
+    reg=settings.reg
 )
 
 mf_model.fit(
     user_ids=user_indices,
     item_ids=item_indices,
     ratings=rating_values,
-    epochs=20,
-    verbose=True
+    epochs=settings.epochs,
+    verbose=settings.verbose
 )
 ```
 
@@ -178,104 +218,101 @@ mf_model.fit(
 #| label: save-embeddings
 
 # Save embeddings for use in other notebooks
-embeddings_dir = Path("data/embeddings")
-embeddings_dir.mkdir(exist_ok=True, parents=True)
+generated_data_dir = Path("..") / "data" / "generated"
+generated_data_dir.mkdir(exist_ok=True, parents=True)
 
-np.save(embeddings_dir / "mf_item_embeddings.npy", mf_model.item_factors)
-np.save(embeddings_dir / "mf_user_embeddings.npy", mf_model.user_factors)
-
-# Save mapping dictionaries as numpy arrays
-# Convert dict keys/values to arrays for storage
-item_ids = np.array(list(item_to_idx.keys()), dtype=np.int64)
-item_indices = np.array(list(item_to_idx.values()), dtype=np.int64)
-user_ids = np.array(list(user_to_idx.keys()), dtype=np.int64)
-user_indices = np.array(list(user_to_idx.values()), dtype=np.int64)
-
+# Save embeddings and mappings in a single numpy archive
 np.savez(
-    embeddings_dir / "mappings.npz",
-    item_ids=item_ids,
-    item_indices=item_indices,
-    user_ids=user_ids,
-    user_indices=user_indices
+    generated_data_dir / "mf_embeddings.npz",
+    embeddings=mf_model.item_factors,
+    item_ids=np.array(list(item_to_idx.keys()), dtype=np.int64),
+    item_indices=np.array(list(item_to_idx.values()), dtype=np.int64)
 )
 
-print(f"Saved embeddings to {embeddings_dir}")
+print(f"Saved embeddings to {generated_data_dir}")
 print(f"  Item embeddings: {mf_model.item_factors.shape}")
 print(f"  User embeddings: {mf_model.user_factors.shape}")
-print(f"  Mappings: {len(item_to_idx)} items, {len(user_to_idx)} users")
-```
-
-```{python}
-#| label: train-mf-64d
-
-# Also train a higher-dimensional model for slate generation (Part IV.a)
-mf_model_64d = MatrixFactorization(
-    num_users=len(user_to_idx),
-    num_items=len(item_to_idx),
-    num_factors=64,  # Higher dimensional for better slate generation
-    learning_rate=0.01,
-    reg=0.01
-)
-
-print("\nTraining 64-dimensional MF model for slate generation...")
-mf_model_64d.fit(
-    user_ids=user_indices,
-    item_ids=item_indices,
-    ratings=rating_values,
-    epochs=20,
-    verbose=False
-)
-
-# Save 64-dimensional embeddings
-np.save(embeddings_dir / "mf_item_embeddings_64d.npy", mf_model_64d.item_factors)
-print(f"Saved 64-dim embeddings: {mf_model_64d.item_factors.shape}")
+print(f"  Number of items: {len(item_to_idx):,}")
+print(f"\nFile created:")
+print(f"  - mf_embeddings_{settings.num_factors}d.npz")
+print(f"    Contains: embeddings, item_ids, item_indices")
 ```
 
 ## Visualize Item Embeddings
 
-Let's visualize the learned embeddings for our example movies using dimensionality reduction.
+Let's visualize the learned embeddings for all movies using t-SNE dimensionality reduction, with our example movies highlighted.
 
 ```{python}
 #| label: visualize-mf-embeddings
 
-# Get item embeddings for our example movies
+# Set random seed for reproducible t-SNE
+np.random.seed(42)
+
+# Apply t-SNE to ALL item embeddings
+print("Running t-SNE on all item embeddings (this may take a moment)...")
+tsne = TSNE(n_components=2, random_state=42, perplexity=30, verbose=0)
+all_embeddings_2d = tsne.fit_transform(mf_model.item_factors)
+
+# Get example movie indices
 example_indices = [item_to_idx[mid] for mid in EXAMPLE_MOVIE_IDS if mid in item_to_idx]
-example_embeddings = mf_model.item_factors[example_indices]
+example_movie_ids = [mid for mid in EXAMPLE_MOVIE_IDS if mid in item_to_idx]
 
-# Apply PCA for 2D visualization
-pca = PCA(n_components=2)
-embeddings_2d = pca.fit_transform(example_embeddings)
-
-# Prepare data for plotnine
+# Prepare data for all movies
 embedding_data = []
-for i, idx in enumerate(example_indices):
-    movie_id = [mid for mid, midx in item_to_idx.items() if midx == idx][0]
-    movie_title = movies.filter(pl.col("movie_id") == movie_id)['title'][0]
-    short_title = movie_title.split('(')[0].strip()
+
+# Add all movies as background points
+for idx in range(len(mf_model.item_factors)):
+    is_example = idx in example_indices
+
+    if is_example:
+        # Get movie info for example movies
+        movie_id = [mid for mid, midx in item_to_idx.items() if midx == idx][0]
+        movie_title = movies.filter(pl.col("movie_id") == movie_id)['title'][0]
+        short_title = movie_title.split('(')[0].strip()
+    else:
+        short_title = ''
+        movie_id = None
 
     embedding_data.append({
-        'PC1': embeddings_2d[i, 0],
-        'PC2': embeddings_2d[i, 1],
+        'tsne1': all_embeddings_2d[idx, 0],
+        'tsne2': all_embeddings_2d[idx, 1],
         'title': short_title,
-        'movie_id': movie_id
+        'is_example': is_example,
+        'point_size': 4 if is_example else 1,
+        'point_alpha': 0.9 if is_example else 0.15
     })
 
-embedding_df = pd.DataFrame(embedding_data)
+embedding_df = pl.DataFrame(embedding_data)
 
-display(Markdown(f"**Explained variance:** PC1={pca.explained_variance_ratio_[0]:.2%}, PC2={pca.explained_variance_ratio_[1]:.2%}"))
+display(Markdown(f"""
+**t-SNE Visualization:**
+- Total movies visualized: {len(embedding_df):,}
+- Example movies highlighted: {len(example_indices)}
+- Perplexity: 30, Iterations: 1000
+"""))
 
 # Create visualization with plotnine
 (
-    ggplot(embedding_df, aes(x='PC1', y='PC2', label='title')) +
-    geom_point(size=5, alpha=0.7, color='steelblue') +
-    geom_text(size=9, nudge_y=0.1, fontweight='bold', color='black',
-              va='bottom', ha='center') +
-    labs(
-        title='Matrix Factorization: Item Embeddings (PCA Projection)',
-        x='First Principal Component',
-        y='Second Principal Component'
+    ggplot(embedding_df, aes(x='tsne1', y='tsne2')) +
+    geom_point(
+        data=embedding_df.filter(~pl.col('is_example')),
+        size=1, alpha=0.15, color='gray'
     ) +
-    theme(figure_size=(12, 8))
+    geom_point(
+        data=embedding_df.filter(pl.col('is_example')),
+        size=4, alpha=0.9, color='steelblue'
+    ) +
+    geom_text(
+        aes(label='title'),
+        embedding_df.filter(pl.col('is_example')),
+        size=9, nudge_y=0.5, fontweight='bold', color='black',
+        va='bottom', ha='center'
+    ) +
+    labs(
+        title='Matrix Factorization: Item Embeddings (t-SNE Projection)',
+        x='t-SNE Dimension 1',
+        y='t-SNE Dimension 2'
+    )
 )
 ```
 
@@ -347,7 +384,7 @@ if alice_id in user_to_idx:
             y='Rating',
             fill='Rating Type'
         ) +
-        theme(figure_size=(12, 6), axis_text_x=element_text(rotation=45, hjust=1)) +
+        theme(axis_text_x=element_text(rotation=45, hjust=1)) +
         ylim(0, 5.5)
     )
 ```
@@ -530,7 +567,6 @@ heatmap_df = pd.DataFrame(heatmap_data)
         fill='Similarity\nScore'
     ) +
     theme(
-        figure_size=(12, 10),
         axis_text_x=element_text(rotation=45, hjust=1),
         panel_grid=element_blank()
     )
@@ -593,7 +629,7 @@ if alice_id in user_to_idx:
             y='EASE Score',
             fill='Interaction Status'
         ) +
-        theme(figure_size=(12, 6), axis_text_x=element_text(rotation=45, hjust=1))
+        theme(axis_text_x=element_text(rotation=45, hjust=1))
     )
 ```
 
@@ -680,7 +716,7 @@ if alice_id in user_to_idx:
             y='Score',
             fill='Model'
         ) +
-        theme(figure_size=(12, 6), axis_text_x=element_text(rotation=45, hjust=1)) +
+        theme(axis_text_x=element_text(rotation=45, hjust=1)) +
         ylim(0, 5.5)
     )
 
@@ -698,7 +734,6 @@ if alice_id in user_to_idx:
             x='MF Predicted Rating',
             y='Actual Rating'
         ) +
-        theme(figure_size=(10, 8)) +
         xlim(0, 5.5) +
         ylim(0, 5.5) +
         coord_equal()
@@ -808,10 +843,24 @@ We've explored two foundational collaborative filtering approaches:
 - **MF**: When you need rating predictions, have explicit feedback, want interpretable embeddings
 - **EASE**: When you need fast, simple baseline, have implicit feedback, value interpretability
 
+## Configuration
+
+**Matrix Factorization** supports environment variable configuration:
+- All hyperparameters can be overridden with `MF_` prefix
+- Example: `MF_NUM_FACTORS=128 MF_EPOCHS=200 MF_LEARNING_RATE=0.005`
+- Default: 64 factors, 100 epochs (optimized for slate generation in Part IV)
+- Random seed is always 42 for reproducibility
+
+**For slate generation (Part IV):**
+- The model saves embeddings in the format expected by `04a_slate_generation.qmd`
+- Default configuration (64d, 100 epochs) provides good quality embeddings
+- Increase epochs to 150-200 for better convergence if needed
+
 ## Next Steps
 
 In the remaining notebooks, we'll explore:
 - **Part II (SASRec)**: Sequential recommendation with self-attention
 - **Part III (LLMs)**: Zero-shot and few-shot recommendations with language models
+- **Part IV (Slate Generation)**: Use these MF embeddings for diversity-aware recommendations
 
 These modern approaches address limitations of classical CF (cold start, sequential patterns, semantic understanding).
