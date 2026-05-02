@@ -1,15 +1,15 @@
 """Tests for LLM utilities module."""
 
-import pytest
-
 from recsys_genai.llm_utils import (
     check_ollama_available,
     ollama_embed,
     ollama_generate,
     ollama_generate_json,
 )
+from tests.conftest import skip_if_github_action
 
 
+@skip_if_github_action
 def test_check_ollama_available():
     """Test checking if Ollama is available."""
     # This test just checks that the function runs without error
@@ -18,10 +18,7 @@ def test_check_ollama_available():
     assert isinstance(result, bool)
 
 
-@pytest.mark.skipif(
-    not check_ollama_available("ministral-3:3b"),
-    reason="Ollama not available or model not pulled",
-)
+@skip_if_github_action
 def test_ollama_generate():
     """Test text generation with Ollama."""
     response = ollama_generate(
@@ -35,10 +32,7 @@ def test_ollama_generate():
     assert len(response) > 0
 
 
-@pytest.mark.skipif(
-    not check_ollama_available("ministral-3:3b"),
-    reason="Ollama not available or model not pulled",
-)
+@skip_if_github_action
 def test_ollama_generate_json():
     """Test JSON generation with Ollama."""
     prompt = """Generate a JSON object with these fields:
@@ -53,10 +47,7 @@ Output ONLY the JSON object, nothing else."""
     # The exact keys may vary, but we should get a dictionary
 
 
-@pytest.mark.skipif(
-    not check_ollama_available("nomic-embed-text-v2-moe"),
-    reason="Ollama not available or embedding model not pulled",
-)
+@skip_if_github_action
 def test_ollama_embed_single():
     """Test embedding a single text."""
     embedding = ollama_embed("Hello world", model="nomic-embed-text-v2-moe")
@@ -66,10 +57,7 @@ def test_ollama_embed_single():
     assert isinstance(embedding[0], float)
 
 
-@pytest.mark.skipif(
-    not check_ollama_available("nomic-embed-text-v2-moe"),
-    reason="Ollama not available or embedding model not pulled",
-)
+@skip_if_github_action
 def test_ollama_embed_multiple():
     """Test embedding multiple texts."""
     texts = ["Hello world", "Goodbye world", "Testing embeddings"]

@@ -7,10 +7,9 @@ authors = [
     { name = "Jan Kislinger", email = "jan.kislinger@gmail.com" }
 ]
 
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
     "click~=8.1",
-    "dvc~=3.0",
     "einops~=0.8",
     "jupyterlab~=4.5",
     "jupyterlab-quarto~=0.3",
@@ -19,23 +18,23 @@ dependencies = [
     "ollama~=0.4",
     "plotnine~=0.15",
     "polars[pyarrow]~=1.39",
-    "quarto-cli~=1.9",
     "scikit-learn~=1.8",
     "scipy~=1.17",
     "torch~=2.11",
     "transformers~=5.4",
 ]
 
-[project.scripts]
-recsys-genai = "recsys_genai.cli:cli"
-
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
+    "quarto-cli~=1.9",
     "nbconvert>=7.11.0",
     "nbformat>=5.9.0",
     "pytest>=7.4.0",
     "ruff>=0.1.0",
 ]
+
+[project.scripts]
+recsys-genai = "recsys_genai.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -43,7 +42,6 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

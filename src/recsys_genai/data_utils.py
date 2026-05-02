@@ -25,8 +25,8 @@ def load_movielens(
         Tuple of (movies, ratings, tags, links) DataFrames
 
     Example:
-        >>> movies, ratings, tags, links = load_movielens("data")
-        >>> print(movies.columns)
+        >>> movies, ratings, tags, links = load_movielens("data")  # doctest: +SKIP
+        >>> print(movies.columns)  # doctest: +SKIP
         ['movie_id', 'title', 'genres']
     """
     data_path = Path(data_dir)

@@ -53,8 +53,8 @@ def ollama_generate(
         Generated text from the model
 
     Example:
-        >>> response = ollama_generate("What is 2+2?", model="ministral-3:3b")
-        >>> isinstance(response, str)
+        >>> response = ollama_generate("What is 2+2?", model="ministral-3:3b")  # doctest: +SKIP
+        >>> isinstance(response, str)  # doctest: +SKIP
         True
 
     Environment Variables:
@@ -88,9 +88,9 @@ def ollama_generate_json(
         Parsed JSON object as a dictionary
 
     Example:
-        >>> prompt = "Generate JSON: {'name': 'example', 'value': 42}"
-        >>> result = ollama_generate_json(prompt, model="ministral-3:3b")
-        >>> isinstance(result, dict)
+        >>> prompt = "Generate JSON: {'name': 'example', 'value': 42}"  # doctest: +SKIP
+        >>> result = ollama_generate_json(prompt, model="ministral-3:3b")  # doctest: +SKIP
+        >>> isinstance(result, dict)  # doctest: +SKIP
         True
 
     Environment Variables:
@@ -125,10 +125,11 @@ def ollama_embed(
         Embedding vector (single text) or list of embedding vectors (multiple texts)
 
     Example:
-        >>> embedding = ollama_embed("Hello world", model="nomic-embed-text-v2-moe")
-        >>> isinstance(embedding, list)
+        >>> embedding = ollama_embed(
+        ...     "Hello world", model="nomic-embed-text-v2-moe")  # doctest: +SKIP
+        >>> isinstance(embedding, list)  # doctest: +SKIP
         True
-        >>> isinstance(embedding[0], float)
+        >>> isinstance(embedding[0], float)  # doctest: +SKIP
         True
 
     Environment Variables:
