@@ -108,6 +108,48 @@ class SASRec(nn.Module):
             top_scores, top_items = torch.topk(last_logits, k, dim=-1)
         return top_items, top_scores
 
+    def forward_with_attention(self, seq: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward pass that captures attention weights from all transformer blocks.
+
+        Args:
+            seq: (batch_size, seq_len) Item sequence tensor
+
+        Returns:
+            x: (batch_size, seq_len, hidden_size) Final hidden states
+            attention_weights: List of attention weight tensors, one per block.
+                Each tensor has shape (batch_size, num_heads, seq_len, seq_len)
+        """
+        batch_size, seq_len = seq.shape
+
+        # Positions
+        positions = torch.arange(seq_len, device=seq.device).unsqueeze(0).expand(batch_size, -1)
+
+        # Embeddings
+        x = self.item_emb(seq) + self.pos_emb(positions)
+        x = self.dropout(x)
+
+        # Create causal mask
+        mask = torch.triu(torch.ones(seq_len, seq_len, device=seq.device), diagonal=1).bool()
+
+        # Collect attention weights from all blocks
+        attention_weights = []
+
+        for block in self.blocks:
+            # Get attention from multi-head attention (per-head weights)
+            attn_output, attn_weights = block.attention(
+                x, x, x, attn_mask=mask, need_weights=True, average_attn_weights=False
+            )
+
+            # Save weights from this block
+            attention_weights.append(attn_weights)
+
+            # Continue block forward pass
+            x = block.ln1(x + block.dropout(attn_output))
+            ffn_out = block.ffn(x)
+            x = block.ln2(x + ffn_out)
+
+        return x, attention_weights
+
 
 class TransformerBlock(nn.Module):
     """Single transformer block with multi-head self-attention and FFN."""

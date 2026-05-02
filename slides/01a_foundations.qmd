@@ -1,0 +1,335 @@
+---
+title: "Part I: Foundations of Recommender Systems"
+subtitle: "From Collaborative Filtering to Modern Embeddings"
+format: revealjs
+---
+
+## Why Do We Need Recommendations? {.center}
+
+**The Problem**
+
+Too many choices, too little time
+
+::: {.fragment}
+**Without recommendations:**
+
+- Endless browsing, no discovery
+- Miss relevant content
+- Poor user experience
+:::
+
+::: {.fragment}
+**With recommendations:**
+
+- Personalized discovery
+- Relevant suggestions
+- Better engagement
+:::
+
+---
+
+## Explicit Feedback
+
+**Users rate items explicitly** (e.g., 1-5 stars)
+
+|       | Titanic | Alien | Shrek | Avatar |
+|-------|:-------:|:-----:|:-----:|:------:|
+| Alice | ⭐⭐⭐⭐⭐ | ?     | ⭐⭐⭐⭐  | ?      |
+| Bob   | ?       | ⭐⭐⭐⭐ |   ?   | ⭐⭐   |
+| Carol | ⭐⭐⭐⭐ | ?     |  ⭐⭐   | ?      |
+
+**Goal**: Predict missing ratings (?)
+
+**Challenge**: Matrix is extremely sparse! (>99% missing in practice)
+
+---
+
+## Implicit Feedback
+
+**Explicit ratings are rare!** Most interactions are implicit:
+
+::: {.fragment}
+- **Watch**: User watched a video
+- **Click**: User clicked on an item
+- **Purchase**: User bought a product
+- **Like**: User gave positive signal
+:::
+
+::: {.fragment}
+**Interaction Matrix** (binary: 0/1)
+:::
+
+|       | Titanic | Alien | Shrek | Avatar |
+|-------|:-------:|:-----:|:-----:|:------:|
+| Alice | ✅      |       |   ✅   |        |
+| Bob   |         | ✅    |       |        |
+| Carol | ✅      |       |       |        |
+
+---
+
+## From Ratings to Interactions
+
+::: {.columns}
+::: {.column width="50%"}
+**Rating Matrix R**
+
+- Explicit feedback
+- Clear preferences
+- User effort required
+:::
+
+::: {.column width="50%"}
+**Interaction Matrix X**
+
+- Implicit feedback
+- Noisy signal
+- No user effort!
+:::
+:::
+
+::: {.fragment}
+**Modern systems**: Primarily use implicit feedback
+
+**Why?** More data, less user friction
+:::
+
+---
+
+## Collaborative Filtering
+
+**Key Insight**: Users with similar tastes in the past will have similar tastes in the future
+
+::: {.columns}
+::: {.column width="50%"}
+**User-based CF**
+
+- Find users similar to Alice
+- Recommend what they liked
+:::
+
+::: {.column width="50%"}
+**Item-based CF**
+
+- Find movies similar to what Alice liked
+- Recommend those
+:::
+:::
+
+**Pioneered by GroupLens** [@resnick1994grouplens]
+
+---
+
+## Matrix Factorization
+
+**Idea**: Decompose sparse rating matrix into latent factors
+
+$$R \approx U \times V^T$$
+
+![Matrix factorization visualization. Source: [Google ML Guide](https://developers.google.com/machine-learning/recommendation/collaborative/matrix)](../assets/matrix-factorization.svg){width=70% fig-align="center"}
+
+---
+
+## Matrix Factorization: Visual Intuition
+
+**From Koren et al. (2009)** [@koren2009matrix]
+
+::: {.fragment}
+Each movie and user represented in latent space
+
+- **Dimension 1**: Male-oriented ↔ Female-oriented
+- **Dimension 2**: Serious ↔ Escapist
+:::
+
+::: {.fragment}
+**Prediction**: Dot product of user and item vectors
+:::
+
+::: {.notes}
+The famous 2009 IEEE Computer paper showed how latent factors emerge from the Netflix Prize data
+:::
+
+---
+
+## Side Information
+
+**Beyond just interactions**: Use metadata to improve recommendations
+
+::: {.columns}
+::: {.column width="50%"}
+**User Metadata**
+
+- Age, location
+- Device type
+- Time of day
+- Historical behavior
+:::
+
+::: {.column width="50%"}
+**Item Metadata**
+
+- Genre, director
+- Release date
+- Tags, descriptions
+- Visual features
+:::
+:::
+
+::: {.fragment}
+**Benefit**: Helps with cold-start (new users/items)
+
+Enables **content-based filtering**
+:::
+
+
+# Embeddings {.center}
+
+---
+
+## Word2Vec: The Embedding Revolution
+
+**Key idea from NLP** [@mikolov2013distributed]:
+
+Words with similar contexts have similar meanings
+
+**Skip-gram architecture**:
+
+- Input: Current word
+- Output: Predict surrounding words
+- Learn word embeddings as a side effect
+
+---
+
+## Word2Vec: Learned Representations
+
+![Word2Vec capitals example [@mikolov2013distributed]](../assets/word2vec-capitals.png){width=60% fig-align="center"}
+
+Vector arithmetic: `King - Man + Woman ≈ Queen`
+
+---
+
+## Embeddings for Recommendations
+
+![Book recommendations example [@vancura2022elsa]](../assets/elsa-books.png){width=60% fig-align="center"}
+
+---
+
+## Node2Vec: Embeddings for Graphs
+
+**Key idea**: Random walks in graphs [@grover2016node2vec]
+
+::: {.fragment}
+**Almost any data can be represented as a graph**
+
+- Users & Items → Nodes
+- Interactions → Edges
+- Social connections, knowledge graphs, etc.
+:::
+
+::: {.fragment}
+**Learn embeddings** that capture graph structure
+:::
+
+---
+
+## Two-Tower Model
+
+**Dominant architecture for retrieval**
+
+::: {.columns}
+::: {.column width="50%"}
+**Query Tower**
+
+- User features
+- Context features
+- → User embedding
+:::
+
+::: {.column width="50%"}
+**Item Tower**
+
+- Item features
+- Metadata
+- → Item embedding
+:::
+:::
+
+**Scoring**: Dot product of embeddings
+
+$$\text{score}(u, i) = \text{user_emb}(u) \cdot \text{item_emb}(i)$$
+
+---
+
+## Two-Tower: Why So Powerful?
+
+**Key advantage**: Decouple user and item computation
+
+::: {.fragment}
+1. **Precompute** item embeddings offline for all items
+2. **Compute** user embedding at inference time
+3. **Fast retrieval** using approximate nearest neighbors (ANN)
+:::
+
+::: {.fragment}
+**YouTube** [@covington2016deep]:
+
+- Candidate generation: Two-tower model
+- Selects hundreds from millions of videos
+- Millisecond-level latency at scale!
+:::
+
+# Retrieval → Ranking {.center}
+
+---
+
+## Stage 1: Retrieval
+
+**Goal**: Fast reduction from millions to hundreds
+
+::: {.fragment}
+- **Input**: User context
+- **Output**: 100-1000 candidates
+- **Methods**:
+  - Two-tower models
+  - Approximate Nearest Neighbors (ANN)
+:::
+
+::: {.fragment}
+**Speed >> Accuracy**
+:::
+
+---
+
+## Stage 2: Ranking
+
+**Goal**: Precise scoring of candidates
+
+::: {.fragment}
+- **Input**: ~1000 candidates
+- **Output**: Ranked list with scores
+- **Methods**:
+  - Deep neural networks
+  - Gradient boosted trees
+  - Complex feature interactions
+:::
+
+::: {.fragment}
+**Accuracy >> Speed**
+:::
+
+---
+
+## Key Takeaways
+
+1. **Collaborative Filtering**: Users with similar behavior like similar items
+2. **Matrix Factorization**: Decompose ratings into latent factors
+3. **Implicit Feedback**: Use interactions (clicks, watches), not just ratings
+4. **Embeddings**: Core technique underlying all modern systems
+5. **Two-Tower Models**: Separate user and item encoding for scalability
+6. **Two-Stage Pipeline**: Retrieval → Ranking
+
+---
+
+## References
+
+::: {#refs}
+:::

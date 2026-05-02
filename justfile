@@ -36,3 +36,45 @@ format:
 # Run unit tests
 test:
     uv run pytest
+
+# Format a single notebook: convert qmd -> py, run ruff, convert back, fix "# |" -> "#|"
+format-notebook file:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    qmd_file="{{file}}"
+    py_file="${qmd_file%.qmd}.py"
+
+    # Check for uncommitted changes in this specific file
+    if ! git diff --quiet "$qmd_file" || ! git diff --cached --quiet "$qmd_file"; then
+        echo "Error: $qmd_file has uncommitted changes. Commit or stash them first."
+        exit 1
+    fi
+
+    echo "Processing $qmd_file..."
+    uv run jupytext --to py:percent "$qmd_file"
+    uv run ruff format "$py_file"
+    uv run jupytext --to qmd "$py_file"
+    rm -f "$py_file"
+
+    # Fix '# |' -> '#|' (removing space after hash)
+    sed -i 's/^# |/#|/g' "$qmd_file"
+
+    echo "✓ Formatted $qmd_file"
+
+# Format all notebooks
+format-notebooks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check for uncommitted changes in notebooks directory
+    if ! git diff --quiet notebooks/ || ! git diff --cached --quiet notebooks/; then
+        echo "Error: notebooks/ has uncommitted changes. Commit or stash them first."
+        exit 1
+    fi
+
+    for qmd_file in notebooks/*.qmd; do
+        just format-notebook "$qmd_file"
+    done
+
+    echo "✓ All notebooks formatted successfully!"

@@ -1,7 +1,8 @@
 ---
-title: "Part II: Self-Attentive Sequential Recommendation"
-subtitle: "Transformers for Next-Item Prediction"
+title: 'Part II: Self-Attentive Sequential Recommendation'
+subtitle: Transformers for Next-Item Prediction
 jupyter: python3
+format: html
 ---
 
 # Introduction
@@ -22,10 +23,15 @@ This notebook implements **SASRec** (Self-Attentive Sequential Recommendation), 
 ```{python}
 #| label: imports
 
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 import torch
 import torch.nn as nn
+from IPython.display import Markdown, display
+from plotnine import *
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from torch.utils.data import DataLoader
 
 from recsys_genai.data_utils import SequenceDataset, get_user_sequences, load_movielens
@@ -33,34 +39,87 @@ from recsys_genai.metrics import ndcg_at_k, recall_at_k
 from recsys_genai.sasrec import SASRec, train_sasrec
 ```
 
-# 1. Prepare Sequential Data
-
-## Load and Filter Data
-
 ```{python}
 #| label: setup
 
-movies, ratings, tags, links = load_movielens("../data")
+theme_set(
+    theme_minimal()
+    + theme(
+        plot_title=element_text(weight="bold", size=14),
+        axis_title=element_text(size=12),
+        figure_size=(8, 6),
+    )
+)
 
 torch.manual_seed(42)
 np.random.seed(42)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
+```
+
+```{python}
+#| label: training-settings
+
+class SASRecSettings(BaseSettings):
+    """Configuration for SASRec training.
+
+    Can be overridden with environment variables using SASREC_ prefix.
+    Example: SASREC_NUM_EPOCHS=10
+    """
+
+    model_config = SettingsConfigDict(env_prefix="SASREC_")
+
+    # Data preprocessing
+    min_user_ratings: int = Field(default=20, description="Minimum number of ratings per user")
+    rating_threshold: float = Field(default=4.0, description="Minimum rating for positive feedback")
+    min_sequence_length: int = Field(default=10, description="Minimum sequence length")
+    max_sequence_length: int = Field(default=50, description="Maximum sequence length")
+
+    # Model architecture
+    num_blocks: int = Field(default=2, description="Number of transformer blocks")
+    num_heads: int = Field(default=2, description="Number of attention heads")
+    hidden_size: int = Field(default=64, description="Hidden dimension size")
+    dropout: float = Field(default=0.2, description="Dropout rate")
+
+    # Training parameters
+    batch_size: int = Field(default=128, description="Training batch size")
+    num_epochs: int = Field(default=5, description="Number of training epochs")
+    learning_rate: float = Field(default=0.001, description="Learning rate for optimizer")
+
+    # Evaluation
+    eval_k: int = Field(default=10, description="K for Recall@K and NDCG@K metrics")
+    eval_sample_size: int = Field(default=1000, description="Number of test users to evaluate")
+
+
+settings = SASRecSettings()
+```
+
+# Prepare Sequential Data
+
+## Load and Filter Data
+
+```{python}
+#| label: load-data
+
+movies, ratings, tags, links = load_movielens("../data")
 
 # Filter to users with enough ratings
 user_counts = ratings.group_by("user_id").agg(pl.len().alias("count"))
-active_users = user_counts.filter(pl.col("count") >= 20)["user_id"].to_list()
-
-print(f"Active users (≥20 ratings): {len(active_users):,}")
+active_users = user_counts.filter(pl.col("count") >= settings.min_user_ratings)["user_id"].to_list()
 
 # Filter ratings
 filtered_ratings = ratings.filter(
-    pl.col("user_id").is_in(active_users) &
-    (pl.col("rating") >= 4.0)  # Implicit positive feedback
+    pl.col("user_id").is_in(active_users) & (pl.col("rating") >= settings.rating_threshold)  # Implicit positive feedback
 )
 
-print(f"Positive interactions: {len(filtered_ratings):,}")
+load_stats = f"""
+**Loaded Data:**
+
+- Active users (≥{settings.min_user_ratings} ratings): {len(active_users):,}
+- Positive interactions: {len(filtered_ratings):,}
+"""
+display(Markdown(load_stats))
 ```
 
 ## Extract User Sequences
@@ -69,15 +128,16 @@ print(f"Positive interactions: {len(filtered_ratings):,}")
 #| label: extract-user-sequences
 
 # Get sequences ordered by timestamp
-sequences = get_user_sequences(
-    filtered_ratings,
-    max_len=50,
-    min_len=10
-)
+sequences = get_user_sequences(filtered_ratings, max_len=settings.max_sequence_length, min_len=settings.min_sequence_length)
 
-print(f"Number of sequences: {len(sequences)}")
-print(f"Example sequence (user {list(sequences.keys())[0]}):")
-print(sequences[list(sequences.keys())[0]][:10])
+example_user = list(sequences.keys())[0]
+sequence_stats = f"""
+**User Sequences:**
+
+- Number of sequences: {len(sequences)}
+- Example sequence (user {example_user}): {sequences[example_user][:10]}
+"""
+display(Markdown(sequence_stats))
 ```
 
 ## Create Item Vocabulary
@@ -94,13 +154,17 @@ item_to_idx = {item_id: idx + 1 for idx, item_id in enumerate(sorted(all_items))
 idx_to_item = {idx: item_id for item_id, idx in item_to_idx.items()}
 idx_to_item[0] = 0  # Padding
 
-print(f"Vocabulary size: {len(item_to_idx)} items")
-
 # Remap sequences to indices
 indexed_sequences = {
-    uid: [item_to_idx[item_id] for item_id in seq]
-    for uid, seq in sequences.items()
+    uid: [item_to_idx[item_id] for item_id in seq] for uid, seq in sequences.items()
 }
+
+vocab_stats = f"""
+**Item Vocabulary:**
+
+- Vocabulary size: {len(item_to_idx)} items
+"""
+display(Markdown(vocab_stats))
 ```
 
 ## Train/Test Split
@@ -122,8 +186,13 @@ for uid, seq in indexed_sequences.items():
     train_sequences[uid] = seq[:-1]  # All but last
     test_ground_truth[uid] = {seq[-1]}  # Last item
 
-print(f"Train sequences: {len(train_sequences)}")
-print(f"Test sequences: {len(test_ground_truth)}")
+split_stats = f"""
+**Train/Test Split:**
+
+- Train sequences: {len(train_sequences)}
+- Test sequences: {len(test_ground_truth)}
+"""
+display(Markdown(split_stats))
 ```
 
 ## Create DataLoader
@@ -131,19 +200,23 @@ print(f"Test sequences: {len(test_ground_truth)}")
 ```{python}
 #| label: create-dataloader
 
-max_len = 50
-train_dataset = SequenceDataset(train_sequences, max_len=max_len)
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=0)
-
-print(f"Training batches: {len(train_loader)}")
+train_dataset = SequenceDataset(train_sequences, max_len=settings.max_sequence_length)
+train_loader = DataLoader(train_dataset, batch_size=settings.batch_size, shuffle=True, num_workers=0)
 
 # Inspect a batch
 sample_batch = next(iter(train_loader))
-print(f"Batch sequence shape: {sample_batch[0].shape}")
-print(f"Batch target shape: {sample_batch[1].shape}")
+
+dataloader_stats = f"""
+**DataLoader:**
+
+- Training batches: {len(train_loader)}
+- Batch sequence shape: {sample_batch[0].shape}
+- Batch target shape: {sample_batch[1].shape}
+"""
+display(Markdown(dataloader_stats))
 ```
 
-# 2. Build SASRec Model
+# Build SASRec Model
 
 ## Model Architecture
 
@@ -154,18 +227,23 @@ num_items = len(item_to_idx)
 
 model = SASRec(
     num_items=num_items,
-    max_len=max_len,
-    num_blocks=2,
-    num_heads=2,
-    hidden_size=64,
-    dropout=0.2
+    max_len=settings.max_sequence_length,
+    num_blocks=settings.num_blocks,
+    num_heads=settings.num_heads,
+    hidden_size=settings.hidden_size,
+    dropout=settings.dropout
 )
 
-print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+model_stats = f"""
+**Model Architecture:**
+
+- Model parameters: {sum(p.numel() for p in model.parameters()):,}
+"""
+display(Markdown(model_stats))
 print(model)
 ```
 
-# 3. Train SASRec
+# Train SASRec
 
 **Objective**: Predict the next item given a sequence
 
@@ -177,13 +255,7 @@ $$
 #| label: train-sasrec
 
 # Train model
-losses = train_sasrec(
-    model=model,
-    dataloader=train_loader,
-    num_epochs=5,
-    lr=0.001,
-    device=device
-)
+losses = train_sasrec(model=model, dataloader=train_loader, num_epochs=settings.num_epochs, lr=settings.learning_rate, device=device)
 ```
 
 ## Plot Training Loss
@@ -191,62 +263,58 @@ losses = train_sasrec(
 ```{python}
 #| label: plot-training-loss
 
-import matplotlib.pyplot as plt
+losses_df = pl.DataFrame({"epoch": list(range(1, len(losses) + 1)), "loss": losses})
 
-plt.figure(figsize=(8, 5))
-plt.plot(range(1, len(losses) + 1), losses, marker='o', linewidth=2, markersize=8)
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('SASRec Training Loss')
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+(
+    ggplot(losses_df, aes(x="epoch", y="loss"))
+    + geom_line(size=1)
+    + geom_point(size=3)
+    + labs(title="SASRec Training Loss", x="Epoch", y="Loss")
+)
 ```
 
-# 4. Generate Recommendations
+# Generate Recommendations
 
-## Predict for Alice
+## Predict for Sample User
 
-Let's see what SASRec recommends for our favorite user!
+Let's see what SASRec recommends for a randomly sampled user!
 
 ```{python}
-#| label: predict-for-alice
+#| label: predict-for-sample-user
 
-# Find Alice (user 1)
-alice_id = 1
+# Sample a random user from active_users who has training sequences
+available_users = [uid for uid in active_users if uid in train_sequences]
+sample_user_id = np.random.choice(available_users)
 
-if alice_id in train_sequences:
-    alice_seq = train_sequences[alice_id]
+sample_seq = train_sequences[sample_user_id]
 
-    # Pad/truncate to max_len
-    if len(alice_seq) > max_len:
-        alice_seq = alice_seq[-max_len:]
-    else:
-        alice_seq = [0] * (max_len - len(alice_seq)) + alice_seq
-
-    # Convert to tensor
-    seq_tensor = torch.tensor([alice_seq], dtype=torch.long).to(device)
-
-    # Predict
-    top_items, top_scores = model.predict_next(seq_tensor, k=10)
-
-    # Map back to movie IDs
-    recommendations = [idx_to_item[idx.item()] for idx in top_items[0]]
-
-    # Display
-    print("Alice's Recent History:")
-    recent_items = [idx_to_item[idx] for idx in alice_seq[-5:] if idx > 0]
-    recent_movies = movies.filter(pl.col("movie_id").is_in(recent_items))
-    print(recent_movies.select(["title", "genres"]))
-
-    print("\nSASRec Recommendations for Alice:")
-    rec_movies = movies.filter(pl.col("movie_id").is_in(recommendations))
-    print(rec_movies.select(["title", "genres"]))
+# Pad/truncate to max_len
+if len(sample_seq) > settings.max_sequence_length:
+    sample_seq = sample_seq[-settings.max_sequence_length:]
 else:
-    print("Alice not in dataset")
+    sample_seq = [0] * (settings.max_sequence_length - len(sample_seq)) + sample_seq
+
+# Convert to tensor
+seq_tensor = torch.tensor([sample_seq], dtype=torch.long).to(device)
+
+# Predict
+top_items, top_scores = model.predict_next(seq_tensor, k=10)
+
+# Map back to movie IDs
+recommendations = [idx_to_item[idx.item()] for idx in top_items[0]]
+
+# Display
+display(Markdown(f"**User {sample_user_id}'s Recent History:**"))
+recent_items = [idx_to_item[idx] for idx in sample_seq[-5:] if idx > 0]
+recent_movies = movies.filter(pl.col("movie_id").is_in(recent_items))
+display(recent_movies.select(["title", "genres"]))
+
+display(Markdown(f"**SASRec Recommendations for User {sample_user_id}:**"))
+rec_movies = movies.filter(pl.col("movie_id").is_in(recommendations))
+display(rec_movies.select(["title", "genres"]))
 ```
 
-# 5. Evaluate Model
+# Evaluate Model
 
 Evaluate on test set using Recall@K and NDCG@K.
 
@@ -256,7 +324,7 @@ Evaluate on test set using Recall@K and NDCG@K.
 model.eval()
 
 predictions = {}
-sample_test_users = list(test_ground_truth.keys())[:1000]  # Sample for speed
+sample_test_users = list(test_ground_truth.keys())[:settings.eval_sample_size]  # Sample for speed
 
 with torch.no_grad():
     for uid in sample_test_users:
@@ -266,10 +334,10 @@ with torch.no_grad():
         seq = train_sequences[uid]
 
         # Pad/truncate
-        if len(seq) > max_len:
-            seq = seq[-max_len:]
+        if len(seq) > settings.max_sequence_length:
+            seq = seq[-settings.max_sequence_length:]
         else:
-            seq = [0] * (max_len - len(seq)) + seq
+            seq = [0] * (settings.max_sequence_length - len(seq)) + seq
 
         seq_tensor = torch.tensor([seq], dtype=torch.long).to(device)
 
@@ -278,19 +346,24 @@ with torch.no_grad():
         predictions[uid] = top_items[0].cpu().tolist()
 
 # Calculate metrics
-recall_10_scores = []
-ndcg_10_scores = []
+recall_scores = []
+ndcg_scores = []
 
 for uid in predictions:
     if uid in test_ground_truth:
         preds = predictions[uid]
         targets = test_ground_truth[uid]
 
-        recall_10_scores.append(recall_at_k(preds, targets, k=10))
-        ndcg_10_scores.append(ndcg_at_k(preds, targets, k=10))
+        recall_scores.append(recall_at_k(preds, targets, k=settings.eval_k))
+        ndcg_scores.append(ndcg_at_k(preds, targets, k=settings.eval_k))
 
-print(f"Recall@10: {np.mean(recall_10_scores):.4f}")
-print(f"NDCG@10: {np.mean(ndcg_10_scores):.4f}")
+eval_results = f"""
+**Evaluation Results:**
+
+- Recall@{settings.eval_k}: {np.mean(recall_scores):.4f}
+- NDCG@{settings.eval_k}: {np.mean(ndcg_scores):.4f}
+"""
+display(Markdown(eval_results))
 ```
 
 ## Results Interpretation
@@ -306,182 +379,137 @@ These metrics are typically lower than MF/EASE on very sparse data, but SASRec e
 - Short-term intent dominates
 :::
 
-# 6. Analyze Attention Patterns
+# Analyze Attention Patterns
 
 Let's visualize what the model learned!
 
+## Sample User's Movie Sequence
+
+First, let's look at the viewing history of a randomly sampled user.
+
+```{python}
+#| label: sample-user-sequence
+
+from recsys_genai.notebook_utils import tmdb_images
+
+# Sample a random user for attention visualization
+viz_user_id = np.random.choice(available_users)
+viz_seq = train_sequences[viz_user_id]
+
+# Load posters dataset
+posters_raw = pl.read_parquet("../data/shared/posters.parquet")
+
+# Join to get movie info with posters (via links for tmdb_id)
+viz_movie_ids = [idx_to_item[idx] for idx in viz_seq if idx > 0]
+viz_movies = (
+    pl.DataFrame({"movie_id": viz_movie_ids})
+    .join(movies, on="movie_id", maintain_order="left")
+    .join(links.select(["movie_id", "tmdb_id"]), on="movie_id", maintain_order="left")
+    .join(posters_raw, on="tmdb_id", maintain_order="left")
+)
+
+# Display user sequence info
+display(
+    Markdown(f"""
+**Sampled User ID:** {viz_user_id}
+
+**Sequence Length:** {len(viz_seq)} items
+
+**Unique Movies:** {len(viz_movie_ids)} (excluding padding)
+""")
+)
+
+recent_movies = viz_movies.tail(20)
+
+# Display posters for movies that have them
+poster_paths = [p for p in recent_movies["poster_path"].to_list() if p is not None]
+display(Markdown(f"\n**Movie Posters:**"))
+display(tmdb_images(poster_paths))
+```
+
 ## Extract Attention Weights
+
+Now let's extract attention weights from the model for this user's sequence.
 
 ```{python}
 #| label: extract-attention-weights
 
-# Modify forward pass to return attention weights
-def forward_with_attention(model, seq):
-    """Forward pass that captures attention weights."""
-    batch_size, seq_len = seq.shape
+if len(viz_seq) > 20:
+    viz_seq = viz_seq[-20:]  # Use last 20 for visualization
 
-    # Positions
-    positions = torch.arange(seq_len, device=seq.device).unsqueeze(0).expand(batch_size, -1)
+seq_padded = [0] * (20 - len(viz_seq)) + viz_seq
+seq_tensor = torch.tensor([seq_padded], dtype=torch.long).to(device)
 
-    # Embeddings
-    x = model.item_emb(seq) + model.pos_emb(positions)
-    x = model.dropout(x)
+model.eval()
+with torch.no_grad():
+    _, attn_weights_list = model.forward_with_attention(seq_tensor)
 
-    # Create causal mask
-    mask = torch.triu(torch.ones(seq_len, seq_len, device=seq.device), diagonal=1).bool()
+# Get movie titles for labels
+movie_ids = [idx_to_item[idx] for idx in seq_padded]
+valid_ids = [mid for mid in movie_ids if mid > 0]
 
-    # Collect attention weights from first block
-    attention_weights = []
+if valid_ids:
+    movie_titles = movies.filter(pl.col("movie_id").is_in(valid_ids))
+    title_map = {row["movie_id"]: row["title"][:20] for row in movie_titles.to_dicts()}
+    labels = [title_map.get(mid, "PAD") for mid in movie_ids]
+else:
+    labels = ["PAD" if mid == 0 else str(mid) for mid in movie_ids]
 
-    for idx, block in enumerate(model.blocks):
-        # Get attention from multi-head attention
-        attn_output, attn_weights = block.attention(x, x, x, attn_mask=mask, need_weights=True)
+# Plot attention weights from all blocks and all heads
+for block_idx, block_attn in enumerate(attn_weights_list):
+    # block_attn shape: (batch_size, num_heads, seq_len, seq_len)
+    num_heads = block_attn.shape[1]
 
-        if idx == 0:  # Save weights from first block
-            attention_weights.append(attn_weights)
+    display(Markdown(f"---\n## Block {block_idx + 1}\n---"))
 
-        # Continue block forward pass
-        x = block.ln1(x + block.dropout(attn_output))
-        ffn_out = block.ffn(x)
-        x = block.ln2(x + ffn_out)
+    for head_idx in range(num_heads):
+        attn_matrix = block_attn[0, head_idx].cpu().numpy()  # First sample, specific head
 
-    return x, attention_weights[0]
+        # Prepare data for plotnine
+        attn_data = []
+        for i in range(attn_matrix.shape[0]):
+            for j in range(attn_matrix.shape[1]):
+                attn_data.append({"query_pos": i, "key_pos": j, "attention": attn_matrix[i, j]})
 
-# Get attention for Alice's sequence
-if alice_id in train_sequences:
-    alice_seq = train_sequences[alice_id]
+        attn_df = pl.DataFrame(attn_data)
 
-    if len(alice_seq) > 20:
-        alice_seq = alice_seq[-20:]  # Use last 20 for visualization
+        # Create heatmap with plotnine
+        plot = (
+            ggplot(attn_df, aes(x="key_pos", y="query_pos", fill="attention"))
+            + geom_tile()
+            + scale_fill_gradient(low="#440154", high="#FDE724", name="Attention\nWeight")
+            + scale_x_continuous(breaks=list(range(20)), labels=labels)
+            + scale_y_reverse(breaks=list(range(20)), labels=labels)
+            + labs(
+                title=f"Block {block_idx + 1}, Head {head_idx + 1} - User {viz_user_id}",
+                x="Key Position",
+                y="Query Position",
+            )
+            + theme(
+                axis_text_x=element_text(rotation=90, hjust=1, size=8),
+                axis_text_y=element_text(size=8),
+            )
+        )
 
-    seq_padded = [0] * (20 - len(alice_seq)) + alice_seq
-    seq_tensor = torch.tensor([seq_padded], dtype=torch.long).to(device)
-
-    model.eval()
-    with torch.no_grad():
-        _, attn_weights = forward_with_attention(model, seq_tensor)
-
-    # Plot attention matrix
-    attn_matrix = attn_weights[0].cpu().numpy()  # First head, first sample
-
-    plt.figure(figsize=(10, 8))
-    plt.imshow(attn_matrix, cmap='viridis', aspect='auto')
-    plt.colorbar(label='Attention Weight')
-    plt.xlabel('Key Position')
-    plt.ylabel('Query Position')
-    plt.title('SASRec Attention Weights (First Head)')
-
-    # Add movie titles if available
-    movie_ids = [idx_to_item[idx] for idx in seq_padded]
-    valid_ids = [mid for mid in movie_ids if mid > 0]
-
-    if valid_ids:
-        movie_titles = movies.filter(pl.col("movie_id").is_in(valid_ids))
-        title_map = {row['movie_id']: row['title'][:20] for row in movie_titles.to_dicts()}
-
-        labels = [title_map.get(mid, 'PAD') for mid in movie_ids]
-        plt.xticks(range(20), labels, rotation=90)
-        plt.yticks(range(20), labels)
-
-    plt.tight_layout()
-    plt.show()
+        display(plot)
 ```
 
 **Interpretation**:
+
 - Brighter cells = stronger attention
 - Each row shows what a query position attends to
 - Causal mask enforces no future peeking
 
-## Sequence Length Experiment
-
-How does sequence length affect performance?
-
-```{python}
-#| label: sequence-length-experiment
-
-# Try different sequence lengths
-seq_lengths = [10, 20, 30, 50]
-results = []
-
-for seq_len in seq_lengths:
-    # Create dataset with this max_len
-    temp_dataset = SequenceDataset(train_sequences, max_len=seq_len)
-    temp_loader = DataLoader(temp_dataset, batch_size=128, shuffle=True, num_workers=0)
-
-    # Train small model
-    temp_model = SASRec(
-        num_items=num_items,
-        max_len=seq_len,
-        num_blocks=1,
-        num_heads=1,
-        hidden_size=32,
-        dropout=0.1
-    )
-
-    print(f"\nTraining with max_len={seq_len}")
-    _ = train_sasrec(temp_model, temp_loader, num_epochs=2, lr=0.001, device=device)
-
-    # Evaluate
-    temp_model.eval()
-    temp_predictions = {}
-
-    with torch.no_grad():
-        for uid in sample_test_users[:200]:  # Small sample
-            if uid not in train_sequences:
-                continue
-
-            seq = train_sequences[uid]
-            if len(seq) > seq_len:
-                seq = seq[-seq_len:]
-            else:
-                seq = [0] * (seq_len - len(seq)) + seq
-
-            seq_tensor = torch.tensor([seq], dtype=torch.long).to(device)
-            top_items, _ = temp_model.predict_next(seq_tensor, k=10)
-            temp_predictions[uid] = top_items[0].cpu().tolist()
-
-    # Metrics
-    temp_recall = []
-    for uid in temp_predictions:
-        if uid in test_ground_truth:
-            temp_recall.append(recall_at_k(temp_predictions[uid], test_ground_truth[uid], k=10))
-
-    results.append({
-        'seq_length': seq_len,
-        'recall@10': np.mean(temp_recall)
-    })
-
-# Plot results
-import polars as pl
-results_df = pl.DataFrame(results)
-print("\nSequence Length Analysis:")
-print(results_df)
-
-plt.figure(figsize=(8, 5))
-plt.plot(results_df['seq_length'], results_df['recall@10'], marker='o', linewidth=2, markersize=8)
-plt.xlabel('Maximum Sequence Length')
-plt.ylabel('Recall@10')
-plt.title('Impact of Sequence Length on Performance')
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
-```
 
 # Key Takeaways
 
 1. **SASRec models temporal dynamics** - Order matters!
 2. **Self-attention** learns which past items are relevant for prediction
 3. **Causal masking** ensures no future leakage during training
-4. **Sequence length** is a key hyperparameter (trade-off: context vs. computation)
-
-**Next Steps:**
-- Part III: LLMs for recommendation (zero-shot, metadata generation)
-- Advanced notebook: Bert4Rec (bidirectional masking)
 
 **Connection to LLMs**:
 SASRec uses the same transformer architecture as GPT!
+
 - GPT predicts next **word**
 - SASRec predicts next **item**
 - Both use causal self-attention
-```
-

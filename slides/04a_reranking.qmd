@@ -1,11 +1,7 @@
 ---
 title: "Part IV.a: Reranking and Slate Optimization"
 subtitle: "Beyond Greedy Item Ranking"
-format:
-  revealjs:
-    theme: simple
-    slide-number: true
-    incremental: false
+format: revealjs
 ---
 
 ## The Problem with Greedy Ranking {.center}

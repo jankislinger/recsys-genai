@@ -1,90 +1,9 @@
 """Tests for models module."""
 
 import numpy as np
-import pytest
 import scipy.sparse as sp
-import torch
 
-from recsys_genai.models import EASE, MatrixFactorization
-
-
-def test_matrix_factorization_init():
-    """Test MF model initialization."""
-    model = MatrixFactorization(num_users=100, num_items=50, num_factors=10)
-
-    assert model.user_factors.shape == (100, 10)
-    assert model.item_factors.shape == (50, 10)
-    assert len(model.user_bias) == 100
-    assert len(model.item_bias) == 50
-
-
-def test_matrix_factorization_predict():
-    """Test MF prediction."""
-    model = MatrixFactorization(num_users=10, num_items=5, num_factors=3)
-
-    # Set known factors for testing using PyTorch syntax
-    model.user_embedding.weight.data[0] = torch.tensor([1.0, 0.0, 0.0])
-    model.item_embedding.weight.data[0] = torch.tensor([1.0, 0.0, 0.0])
-    model.user_bias_embedding.weight.data[0, 0] = 0.5
-    model.item_bias_embedding.weight.data[0, 0] = 0.3
-    model._global_bias.data[0] = 3.5
-
-    pred = model.predict(0, 0)
-    # Expected: 3.5 + 0.5 + 0.3 + 1.0*1.0 = 5.3
-    assert pred == pytest.approx(5.3)
-
-
-def test_matrix_factorization_fit():
-    """Test MF training."""
-    model = MatrixFactorization(
-        num_users=5, num_items=5, num_factors=2, learning_rate=0.1, reg=0.01
-    )
-
-    # Simple training data
-    user_ids = [0, 1, 2]
-    item_ids = [0, 1, 2]
-    ratings = [5.0, 4.0, 3.0]
-
-    # Train for a few epochs
-    model.fit(user_ids, item_ids, ratings, epochs=5, verbose=False)
-
-    # Check that predictions are reasonable
-    pred_0 = model.predict(0, 0)
-    assert 2.0 < pred_0 < 6.0  # Should be roughly near 5.0
-
-
-def test_matrix_factorization_convergence():
-    """Test that MF loss decreases during training."""
-    model = MatrixFactorization(
-        num_users=10, num_items=10, num_factors=5, learning_rate=0.01, reg=0.001
-    )
-
-    # Generate synthetic data
-    np.random.seed(42)
-    num_samples = 50
-    user_ids = np.random.randint(0, 10, num_samples).tolist()
-    item_ids = np.random.randint(0, 10, num_samples).tolist()
-    ratings = np.random.uniform(1, 5, num_samples).tolist()
-
-    # Calculate initial error
-    initial_errors = []
-    for u, i, r in zip(user_ids, item_ids, ratings):
-        pred = model.predict(u, i)
-        initial_errors.append((r - pred) ** 2)
-    initial_mse = np.mean(initial_errors)
-
-    # Train
-    model.fit(user_ids, item_ids, ratings, epochs=20, verbose=False)
-
-    # Calculate final error
-    final_errors = []
-    for u, i, r in zip(user_ids, item_ids, ratings):
-        pred = model.predict(u, i)
-        final_errors.append((r - pred) ** 2)
-    final_mse = np.mean(final_errors)
-
-    # Error should decrease
-    assert final_mse < initial_mse
+from recsys_genai.models import EASE
 
 
 def test_ease_init():

@@ -1,12 +1,7 @@
 ---
 title: "From Matrix Factorization to Generative Recommendation Pages"
 subtitle: "Part I: Why Recommendation is Becoming Generative"
-format:
-  revealjs:
-    theme: simple
-    slide-number: true
-    incremental: false
-    code-line-numbers: false
+format: revealjs
 ---
 
 ## Welcome! {.center}

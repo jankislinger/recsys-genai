@@ -1,0 +1,462 @@
+---
+title: 'Part I.b: EASE - Embarrassingly Shallow Autoencoders'
+subtitle: One of the Most Common Baselines Recommendation Algorithm
+jupyter: python3
+format: html
+---
+
+# Introduction
+
+Now that we understand the MovieLens dataset, let's build a recommendation system using **EASE** (Embarrassingly Shallow Autoencoders).
+
+**Key Paper:**
+
+- @steck2019embarrassingly introduced EASE, an embarrassingly simple yet effective approach to collaborative filtering
+
+**Prerequisites:** Run `02_movielens.qmd` first to understand the data!
+
+```{python}
+#| label: imports
+
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import polars as pl
+import scipy.sparse as sp
+from IPython.display import Markdown, display
+from plotnine import *
+
+from recsys_genai.data_utils import create_user_item_matrix, load_movielens
+from recsys_genai.metrics import evaluate_ranking, ndcg_at_k, recall_at_k
+from recsys_genai.models import EASE
+```
+
+```{python}
+#| label: setup
+
+theme_set(
+    theme_minimal()
+    + theme(
+        plot_title=element_text(weight="bold", size=14),
+        axis_title=element_text(size=12),
+        figure_size=(8, 6),
+    )
+)
+```
+
+# Load Data
+
+```{python}
+#| label: load-data
+
+movies, ratings, tags, links = load_movielens("../data")
+
+# Define example movies (same as in 02_movielens.qmd)
+EXAMPLE_MOVIE_IDS = [
+    1,  # Toy Story (1995) - Animation/Children's
+    2,  # Jumanji (1995) - Adventure/Fantasy
+    32,  # Twelve Monkeys (1995) - Sci-Fi/Thriller
+    110,  # Braveheart (1995) - Action/Drama/War
+    260,  # Star Wars: Episode IV (1977) - Action/Adventure/Sci-Fi
+    296,  # Pulp Fiction (1994) - Crime/Drama
+    318,  # Shawshank Redemption (1994) - Crime/Drama
+    356,  # Forrest Gump (1994) - Comedy/Drama/Romance
+]
+
+data_stats = f"""
+**Loaded Data:**
+
+- Movies: {len(movies):,}
+- Ratings: {len(ratings):,}
+- Users: {ratings["user_id"].n_unique():,}
+- Example movies defined: {len(EXAMPLE_MOVIE_IDS)}
+"""
+display(Markdown(data_stats))
+```
+
+# Prepare Data
+
+```{python}
+#| label: filter-ratings
+
+# Step 1: Filter ratings >= 4.0
+high_ratings = ratings.filter(pl.col("rating") >= 4.0)
+
+display(
+    Markdown(f"""
+**Step 1: Filter ratings >= 4.0**
+
+- Original ratings: {len(ratings):,}
+- High ratings (>= 4.0): {len(high_ratings):,}
+- Percentage: {len(high_ratings) / len(ratings) * 100:.1f}%
+""")
+)
+```
+
+```{python}
+#| label: sample-users
+
+# Step 2: Select users with at least 50 ratings
+user_counts = high_ratings.group_by("user_id").agg(pl.count().alias("num_ratings"))
+active_users = user_counts.filter(pl.col("num_ratings") >= 50)
+
+display(
+    Markdown(f"""
+**Step 2: Select users with >= 50 high ratings**
+
+- Users with >= 50 high ratings: {len(active_users):,}
+- Average ratings per active user: {active_users["num_ratings"].mean():.1f}
+""")
+)
+
+# Step 3: Sample 20k users randomly
+np.random.seed(42)
+sampled_user_ids = active_users.sample(n=min(20000, len(active_users)), seed=42)[
+    "user_id"
+].to_list()
+
+display(
+    Markdown(f"""
+**Step 3: Sample 20k users (seed=42)**
+
+- Sampled users: {len(sampled_user_ids):,}
+""")
+)
+```
+
+```{python}
+#| label: select-top-items
+
+# Step 4: Filter to sampled users
+sampled_ratings = high_ratings.filter(pl.col("user_id").is_in(sampled_user_ids))
+
+# Step 5: Select top 5k items with most ratings
+item_counts = sampled_ratings.group_by("movie_id").agg(pl.count().alias("num_ratings"))
+top_items = item_counts.sort("num_ratings", descending=True).head(5000)
+top_item_ids = top_items["movie_id"].to_list()
+
+display(
+    Markdown(f"""
+**Step 4: Select top 5k items with most ratings**
+
+- Top items selected: {len(top_item_ids):,}
+- Min ratings for top items: {top_items["num_ratings"].min():,}
+- Max ratings for top items: {top_items["num_ratings"].max():,}
+""")
+)
+
+# Step 6: Filter to top items
+filtered_ratings = sampled_ratings.filter(pl.col("movie_id").is_in(top_item_ids))
+```
+
+```{python}
+#| label: select-bob
+
+# Step 7: Select Bob randomly from the 20k users
+np.random.seed(42)
+bob_id = np.random.choice(sampled_user_ids)
+
+display(
+    Markdown(f"""
+**Step 5: Select Bob (random user from sample)**
+
+- Bob's user ID: {bob_id}
+- Bob's ratings in dataset: {filtered_ratings.filter(pl.col("user_id") == bob_id).shape[0]}
+""")
+)
+```
+
+```{python}
+#| label: final-dataset-stats
+
+# Final dataset stats
+final_stats = f"""
+**Final Dataset:**
+
+- Users: {filtered_ratings["user_id"].n_unique():,}
+- Items: {filtered_ratings["movie_id"].n_unique():,}
+- Ratings: {len(filtered_ratings):,}
+- Sparsity: {(1 - len(filtered_ratings) / (filtered_ratings["user_id"].n_unique() * filtered_ratings["movie_id"].n_unique())) * 100:.2f}%
+"""
+display(Markdown(final_stats))
+
+# Train-test split
+np.random.seed(42)
+test_mask = np.random.rand(len(filtered_ratings)) < 0.2
+
+train_ratings = filtered_ratings.filter(~pl.Series(test_mask))
+test_ratings = filtered_ratings.filter(pl.Series(test_mask))
+
+split_stats = f"""
+**Train-Test Split:**
+
+- Training ratings: {len(train_ratings):,}
+- Test ratings: {len(test_ratings):,}
+- Split ratio: {len(test_ratings) / len(filtered_ratings) * 100:.1f}% test
+"""
+display(Markdown(split_stats))
+```
+
+```{python}
+#| label: create-mappings
+
+# Get unique values
+unique_user_ids = train_ratings["user_id"].unique().sort().to_list()
+unique_movie_ids = train_ratings["movie_id"].unique().sort().to_list()
+
+# Create user/item ID mappings
+user_to_idx = {uid: idx for idx, uid in enumerate(unique_user_ids)}
+item_to_idx = {mid: idx for idx, mid in enumerate(unique_movie_ids)}
+```
+
+# EASE: Embarrassingly Shallow Autoencoders
+
+**Key Idea**: Learn item-item similarity matrix directly via closed-form solution!
+
+From Steck (2019): EASE is a linear model that's:
+- **Simple**: No neural networks, no iterations
+- **Strong**: Competitive with deep models
+- **Fast**: Closed-form solution
+
+$$
+\min_B \|X - XB\|_F^2 + \lambda \|B\|_F^2 \quad \text{s.t.} \quad \text{diag}(B) = 0
+$$
+
+
+
+## Create Binary Interaction Matrix
+
+```{python}
+#| label: create-interaction-matrix
+
+interactions = train_ratings.filter(pl.col("rating") >= 4.0).select(["user_id", "movie_id"])
+
+interaction_stats = f"""
+**Binary Interaction Matrix:**
+
+- Total positive interactions (rating >= 4.0): {len(interactions):,}
+- Percentage of all ratings: {len(interactions) / len(train_ratings) * 100:.1f}%
+- Unique users with interactions: {interactions["user_id"].n_unique():,}
+- Unique items with interactions: {interactions["movie_id"].n_unique():,}
+"""
+display(Markdown(interaction_stats))
+
+display(Markdown("**BINARY INTERACTIONS (rating >= 4.0, first 10):**"))
+display(interactions.head(10))
+
+# Build sparse matrix
+rows = [user_to_idx[uid] for uid in interactions["user_id"].to_list() if uid in user_to_idx]
+cols = [item_to_idx[mid] for mid in interactions["movie_id"].to_list() if mid in item_to_idx]
+data = [1] * len(rows)
+
+X = sp.csr_matrix((data, (rows, cols)), shape=(len(user_to_idx), len(item_to_idx)))
+
+matrix_info = f"""
+**Interaction Matrix:**
+
+- **Shape:** {X.shape}
+- **Density:** {X.nnz / (X.shape[0] * X.shape[1]) * 100:.4f}%
+- **Total interactions:** {X.nnz:,}
+"""
+display(Markdown(matrix_info))
+```
+
+## Train EASE Model
+
+```{python}
+#| label: train-ease
+
+ease_model = EASE(reg=500.0)
+ease_model.fit(X)
+
+print("✓ EASE model trained!")
+print(f"  B matrix shape: {ease_model.B.shape}")
+print(f"  B matrix sparsity: {(ease_model.B == 0).sum() / ease_model.B.size * 100:.2f}%")
+```
+
+## EASE Recommendations for Bob
+
+```{python}
+#| label: ease-recommend-bob
+
+bob_idx = user_to_idx[bob_id]
+idx_to_item = {idx: mid for mid, idx in item_to_idx.items()}
+
+ease_recs = ease_model.recommend_for_user(bob_idx, X, k=10)
+ease_movie_ids = [idx_to_item[idx] for idx in ease_recs]
+
+ease_recs_df = movies.filter(pl.col("movie_id").is_in(ease_movie_ids)).select(["title", "genres"])
+
+ease_stats = f"""
+**EASE Recommendations for Bob:**
+
+- Recommended movies: {len(ease_recs_df)}
+- Based on item-item similarity learned from interactions
+- Excludes movies Bob has already rated
+"""
+display(Markdown(ease_stats))
+display(ease_recs_df)
+```
+
+## EASE Item Similarity for Example Movies
+
+```{python}
+#| label: ease-item-similarity
+
+# Get similarity scores between example movies
+example_indices_ease = [item_to_idx[mid] for mid in EXAMPLE_MOVIE_IDS if mid in item_to_idx]
+
+# Get movie titles
+example_titles = []
+for idx in example_indices_ease:
+    movie_id = [mid for mid, midx in item_to_idx.items() if midx == idx][0]
+    title = movies.filter(pl.col("movie_id") == movie_id)["title"][0].split("(")[0].strip()
+    example_titles.append(title)
+
+# Create data for heatmap
+heatmap_data = []
+for i, idx_i in enumerate(example_indices_ease):
+    for j, idx_j in enumerate(example_indices_ease):
+        similarity = ease_model.B[idx_i, idx_j]
+        heatmap_data.append(
+            {"movie_1": example_titles[i], "movie_2": example_titles[j], "similarity": similarity}
+        )
+
+heatmap_df = pd.DataFrame(heatmap_data)
+
+display(Markdown("**EASE Item Similarity Matrix (Example Movies):**"))
+
+(
+    ggplot(heatmap_df, aes(x="movie_1", y="movie_2", fill="similarity"))
+    + geom_tile(color="white", size=0.5)
+    + geom_text(aes(label="similarity"), format_string="{:.3f}", size=8)
+    + scale_fill_gradient2(low="red", mid="white", high="blue", midpoint=0)
+    + labs(title="EASE: Item-Item Similarity Scores", x="Movies", y="Movies", fill="Similarity")
+    + theme(axis_text_x=element_text(rotation=45, hjust=1))
+)
+```
+
+## EASE Scores for Example Movies
+
+```{python}
+#| label: ease-scores-bob
+
+# Get EASE scores for Bob on example movies
+bob_idx = user_to_idx[bob_id]
+
+# Get Bob's interaction vector
+bob_interactions = X[bob_idx].toarray().flatten()
+
+# Compute scores for all items
+ease_scores_all = bob_interactions @ ease_model.B
+
+# Get scores for example movies
+ease_scores_data = []
+for movie_id in EXAMPLE_MOVIE_IDS:
+    if movie_id in item_to_idx:
+        item_idx = item_to_idx[movie_id]
+        ease_score = ease_scores_all[item_idx]
+
+        # Check if Bob rated this movie
+        bob_ratings = train_ratings.filter(
+            (pl.col("user_id") == bob_id) & (pl.col("movie_id") == movie_id)
+        )
+
+        has_rated = "Yes" if len(bob_ratings) > 0 else "No"
+
+        title = movies.filter(pl.col("movie_id") == movie_id)["title"][0]
+
+        ease_scores_data.append({"title": title, "ease_score": ease_score, "bob_rated": has_rated})
+
+ease_scores_df = pl.DataFrame(ease_scores_data).sort("ease_score", descending=True)
+
+display(
+    Markdown("""
+**EASE Scores for Bob on Example Movies:**
+
+EASE computes scores as: `user_interactions @ B`
+
+- Higher scores → stronger recommendation signal
+- Bob rated = whether Bob already rated this movie
+""")
+)
+display(ease_scores_df)
+```
+
+# Evaluation
+
+```{python}
+#| label: evaluate-ease
+
+# Evaluate EASE on test set
+test_user_ids = test_ratings["user_id"].unique().to_list()
+
+# Only evaluate users in training set
+eval_user_ids = [uid for uid in test_user_ids if uid in user_to_idx]
+
+ease_metrics = []
+
+for user_id in eval_user_ids[:100]:  # Sample for speed
+    user_idx = user_to_idx[user_id]
+
+    # Get test items for this user (only high ratings >= 4.0)
+    user_test_items = test_ratings.filter(pl.col("user_id") == user_id)["movie_id"].to_list()
+
+    # Convert to indices and create a set
+    test_item_indices = set([item_to_idx[mid] for mid in user_test_items if mid in item_to_idx])
+
+    if len(test_item_indices) == 0:
+        continue
+
+    # Get EASE recommendations
+    ease_recs = ease_model.recommend_for_user(user_idx, X, k=20)
+
+    # Calculate metrics
+    recall = recall_at_k(ease_recs, test_item_indices, k=10)
+    ndcg = ndcg_at_k(ease_recs, test_item_indices, k=10)
+
+    ease_metrics.append(
+        {
+            "model": "EASE",
+            "recall@10": recall,
+            "ndcg@10": ndcg,
+        }
+    )
+
+ease_metrics_df = pl.DataFrame(ease_metrics)
+
+eval_summary = f"""
+**EASE Evaluation Results:**
+
+- **Recall@10**: {ease_metrics_df["recall@10"].mean():.4f}
+- **NDCG@10**: {ease_metrics_df["ndcg@10"].mean():.4f}
+- Users evaluated: {len(ease_metrics_df)}
+"""
+display(Markdown(eval_summary))
+```
+
+# Summary
+
+## EASE
+
+**Strengths:**
+
+- Extremely simple: closed-form solution!
+- Fast training and inference
+- No hyperparameters to tune (just regularization)
+- Competitive performance with complex models
+- Learns item-item similarity directly
+
+**Weaknesses:**
+
+- Dense matrix B requires O(n²) memory for n items
+- Cannot handle new users/items without retraining
+- No sequential/temporal modeling
+
+**When to use:**
+
+- Small to medium-sized item catalogs
+- Static datasets
+- When you need interpretable item-item similarity
+- When simplicity and speed matter

@@ -19,10 +19,15 @@ website:
           - text: "Introduction"
             href: slides/00_introduction.qmd
           - text: "---"
+          - text: "I.a: Foundations"
+            href: slides/01a_foundations.qmd
+          - text: "I.b: EASE"
+            href: slides/01b_ease.qmd
+          - text: "---"
           - text: "II.a: Transformer Architecture"
             href: slides/02a_transformer_architecture.qmd
           - text: "II.b: Transformers & SASRec"
-            href: slides/02b_transformers.qmd
+            href: slides/02b_transformer_recommendation.qmd
           - text: "---"
           - text: "IV.a: Reranking & Slate Optimization"
             href: slides/04a_reranking.qmd
@@ -35,8 +40,8 @@ website:
         menu:
           - text: "I.a: MovieLens Dataset"
             href: notebooks/01a_movielens.qmd
-          - text: "I.b: Foundations (MF & EASE)"
-            href: notebooks/01b_foundations.qmd
+          - text: "I.b: EASE"
+            href: notebooks/01b_ease.qmd
           - text: "---"
           - text: "II: SASRec"
             href: notebooks/02_sasrec.qmd
@@ -48,8 +53,6 @@ website:
           - text: "---"
           - text: "IV.a: Slate Generation"
             href: notebooks/04a_slate_generation.qmd
-          - text: "IV.b: Capstone Exercise"
-            href: notebooks/04b_capstone_exercise.qmd
       - text: "References"
         href: references.qmd
     right:
@@ -75,6 +78,12 @@ format:
     code-summary: "Show code"
     toc: true
     link-external-newwindow: true
+
+  revealjs:
+    theme: white
+    slide-number: true
+    code-line-numbers: false
+    smaller: true
 
 execute:
   freeze: auto

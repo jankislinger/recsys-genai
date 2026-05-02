@@ -1,11 +1,7 @@
 ---
 title: "Wrap-Up: Research Roadmap & Resources"
 subtitle: "Where to Go From Here"
-format:
-  revealjs:
-    theme: simple
-    slide-number: true
-    incremental: false
+format: revealjs
 ---
 
 ## What We Covered Today {.center}

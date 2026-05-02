@@ -1,717 +1,242 @@
 ---
-title: "Part IV.b: Generating Recommendation Pages"
-subtitle: "From Item Ranking to Experience Generation"
-format:
-  revealjs:
-    theme: simple
-    slide-number: true
-    incremental: false
+title: "Part IV.b: Whole Page Generation"
+subtitle: "From Slates to Complete Recommendation Experiences"
+format: revealjs
 ---
 
-## Recap: From Items to Slates {.center}
+## From Slates to Whole Pages {.center}
 
-**Previous slides**: We learned to optimize **slates**
+**Previous section**: Optimized **individual slates**
+
+```text
+Slate = [item₁, item₂, item₃, item₄, item₅]
+```
 
 ::: {.fragment}
+**This section**: Optimize **entire pages** with multiple carousels
+
 ```text
-U[slate | user] = α·Relevance + β·Diversity + γ·Exploration + ...
+Page = [
+  Carousel₁: "Comedies" → [items],
+  Carousel₂: "Based on a book" → [items],
+  Carousel₃: "Recently added" → [items],
+  ...
+]
 ```
 :::
 
-::: {.fragment}
-**This section**: Extend to entire **pages**
-
-```text
-U[page | user] = ?
-```
-:::
-
 ---
 
-## The Journey So Far
+## What is a "Whole Page"?
 
-We've learned to:
-
-- ✓ Rank items (MF, EASE, SASRec)
-- ✓ Model sequences (Transformers)
-- ✓ Use LLMs for semantics
-- ✓ Optimize slates (MMR, diversity, exploration)
-
-::: {.fragment}
-**Now**: Generate the entire recommendation **experience**
-:::
-
----
-
-## What is a "Recommendation Page"?
-
-Not just a single list — a **structured interface** with **multiple slates**
+Real-world recommendation interfaces have **multiple carousels**:
 
 ::: {.columns}
 ::: {.column width="50%"}
-**Traditional Homepage:**
+**Homepage:**
 
 ```text
-┌─────────────────┐
-│ For You         │
-│ [10 items]      │
-├─────────────────┤
-│ Trending        │
-│ [10 items]      │
-├─────────────────┤
-│ Popular         │
-│ [10 items]      │
-└─────────────────┘
+┌──────────────────────
+│ Continue Watching    
+│ [🎬 🎬 🎬 🎬 🎬 🎬
+├──────────────────────
+│ Trending Now         
+│ [🎬 🎬 🎬 🎬 🎬 🎬
+├──────────────────────
+│ Comedies             
+│ [🎬 🎬 🎬 🎬 🎬 🎬
+├──────────────────────
+│ Based on a Book      
+│ [🎬 🎬 🎬 🎬 🎬 🎬
+└──────────────────────
 ```
-
-*Fixed template*
 :::
 
 ::: {.column width="50%"}
-**Generative Homepage:**
+**Key Properties:**
 
-```text
-┌─────────────────┐
-│ Because you     │
-│ loved Toy Story │
-│ [5 items]       │
-├─────────────────┤
-│ Pixar Classics  │
-│ [8 items]       │
-├─────────────────┤
-│ New Releases    │
-│ [3 items]       │
-└─────────────────┘
-```
-
-*Personalized structure*
+- Multiple themed rows
+- Each row = carousel
+- Items scroll horizontally
+- Carousels scroll vertically
+- **2D grid layout**
 :::
 :::
 
 ---
 
-## From Single Slate to Multiple Slates
+## The Whole Page Optimization Problem
 
-**Slate optimization** (previous slides):
-```text
-Maximize: U[slate | user]
-where slate = [item₁, item₂, ..., itemₖ]
-```
+**Challenge**: Optimize the **entire page** jointly, not each carousel independently
 
 ::: {.fragment}
-**Page generation** (now):
-```text
-Maximize: U[page | user]
-where page = [tile₁, tile₂, ..., tileₙ]
-      tileᵢ = {type, header, slate of items}
-```
+**Why?** Carousels compete for:
+
+- User attention (limited screen space)
+- Items (avoid duplication)
+- Diversity (don't show similar carousels)
 :::
 
 ::: {.fragment}
-**Key difference**: Each tile is itself a slate with metadata!
+**Goal**: Maximize total page utility
+
+```text
+U[page | user] = relevance + diversity + coverage + coherence
+```
 :::
 
 ---
 
-## Page Utility Function
+## Formalizing Whole Page Optimization
 
-**Extending the slate utility**:
-
-```text
-U[page | user] = Σᵢ U[tileᵢ | user, tile₁, ..., tileᵢ₋₁]
-                 + Coherence(page)
-                 + Layout_Quality(page)
-```
+[@ding2019whole] formalized the **whole page optimization** problem:
 
 ::: {.incremental}
-- **Tile utility**: Relevance + diversity within each tile
-- **Coherence**: Do tiles tell a story together?
-- **Layout quality**: Visual hierarchy, sizes, positioning
+- **Input**: User context, candidate items, business constraints
+- **Output**: Page layout with multiple carousels
+- **Objective**: Maximize page-level utility
 :::
 
 ---
 
-## What Makes a Good Page?
+## Ding et al. 2019: Key Contributions
 
-**Within-tile optimization** (from slate optimization):
-- Relevance of items
-- Diversity within tile
-- Exploration vs. exploitation
-
-::: {.fragment}
-**Across-tile optimization** (new!):
-- **Tile diversity**: Different themes across tiles
-- **Coherence**: Tiles build on each other
-- **Coverage**: Represent different aspects of catalog
-- **Layout**: Visual balance, attention flow
-:::
-
----
-
-## Why Generate Pages?
-
-**Traditional approach:**
-1. Fixed number of rows (e.g., 5)
-2. Fixed row types ("Trending", "For You")
-3. Fixed items per row (10)
-
-**Limitations:**
-- Not personalized to user state
-- Ignores catalog dynamics
-- Suboptimal real estate allocation
-- **Can't optimize across tiles**
-
----
-
-## The Generative Shift
-
-**Key Idea**: Treat page layout as a **sequence generation** problem
+**Problem formulation**:
 
 ```text
-Page = Sequence of Tiles
+Maximize: Σᵢ reward(carouselᵢ | user, page₋ᵢ)
 
-Tile₁ → Tile₂ → Tile₃ → ... → Tile_N
-
-Each tile is:
-  - Row header (e.g., "Because you loved...")
-  - Item selection
-  - Display properties (size, position)
+Subject to:
+  - No item duplication across carousels
+  - Global impression constraints
+  - Budget constraints
+  - Diversity requirements
 ```
 
 ::: {.fragment}
-**Autoregressive generation**: Each tile depends on previous tiles!
+**Solution**: Primal-dual algorithm that:
+
+1. Maintains dual variables for constraints
+2. Greedily composes page carousel-by-carousel
+3. Updates dual weights based on constraint violations
 :::
 
 ---
 
-## From SASRec to Page Generation
+## From Optimization to Modular Design
 
-**SASRec:**
-- Input: sequence of items
-- Output: next item
-
-**Page Generator:**
-- Input: user context + catalog state
-- Output: sequence of **tiles** (each tile = row with items)
+[@kislinger2025full] presented a **modular framework** for multi-carousel recommendations:
 
 ::: {.fragment}
-Same transformer architecture, different vocabulary!
+**Key insight**:
+
+1. Topics as **constraints** for the optimization
+2. Greedy **item selection** into carousel
+3. Diversified **carousel selection** as a result
+:::
+
+::: {.fragment}
+This allows optimizing different objectives at different stages!
 :::
 
 ---
 
-## Optimization Problem: Slate vs. Page
+## Topic Assignment Methods
 
-**Slate optimization** (previous):
-```text
-Given: candidate items C, slate size K
-Find: slate S ⊂ C, |S| = K
-Maximize: U[S | user]
-
-Challenge: Combinatorial (~10³ candidates → ~10² slates)
-Solution: MMR, greedy, submodular optimization
-```
-
-::: {.fragment}
-**Page generation** (now):
-```text
-Given: catalog, user context
-Find: sequence of tiles [(type₁, header₁, slate₁), ...]
-Maximize: U[page | user]
-
-Challenge: Compositional (~10⁶ possible pages)
-Solution: Autoregressive generation with transformers
-```
-:::
-
----
-
-## Why Autoregressive Generation?
-
-**Slate optimization**: Discrete optimization over fixed set
-
-**Page generation**: Need to generate:
-1. Number of tiles (1-10)
-2. Each tile's type (carousel, grid, hero, ...)
-3. Each tile's header (text/theme)
-4. Each tile's items (from catalog)
-5. Layout properties (size, position)
-
-::: {.fragment}
-**Solution**: Generate sequentially, like language!
-
-`<tile1> → <tile2> → <tile3> → ... → <END>`
-:::
-
----
-
-## Architecture Sketch
-
-```{mermaid}
-%%| fig-width: 10
-%%| fig-height: 5
-graph LR
-    A[User Context] --> E[Encoder]
-    B[Catalog State] --> E
-    E --> D[Transformer Decoder]
-    D --> T1[Tile 1]
-    T1 --> D
-    D --> T2[Tile 2]
-    T2 --> D
-    D --> T3[Tile 3]
-    T3 --> D
-    
-    style E fill:#a2cde0
-    style D fill:#72b3d0
-    style T1 fill:#e8f4f8
-    style T2 fill:#e8f4f8
-    style T3 fill:#e8f4f8
-```
-
-**User Context**: Recent interactions, preferences, time of day
-
-**Catalog State**: Available items, trending content, new releases
-
----
-
-## Tile Representation
-
-Each tile has multiple attributes:
-
-```python
-Tile = {
-    "type": "carousel",  # grid, hero, carousel
-    "header": "Because you loved Toy Story",
-    "items": [item_id_1, item_id_2, ..., item_id_k],
-    "size": "medium",  # small, medium, large
-    "position": 2,
-}
-```
-
-**Challenge**: How to autoregressively generate structured objects?
-
----
-
-## Approach 1: Token Sequence
-
-Flatten tile structure into tokens:
-
-```text
-[TILE_START] [TYPE:carousel] [HEADER:loved_toy_story] 
-[ITEM:item_123] [ITEM:item_456] ... [TILE_END]
-
-[TILE_START] [TYPE:grid] [HEADER:trending] ...
-```
-
-**Transformer generates one token at a time!**
-
-::: {.fragment}
-Similar to how LLMs generate HTML:
-```html
-<div class="tile">
-  <h2>Because you loved Toy Story</h2>
-  <ul>
-    <li>Item 1</li>
-    <li>Item 2</li>
-  </ul>
-</div>
-```
-:::
-
----
-
-## Approach 2: Tile Embeddings
-
-Learn embeddings for:
-
-- **Tile types**: carousel, grid, hero
-- **Headers**: parameterized by seed item/genre
-- **Item slots**: filled via retrieval
-
-**Generator outputs**:
-1. Tile type (classification)
-2. Header parameters (embeddings)
-3. Number of items (regression)
-
-Then populate with items from retrieval model.
-
----
-
-## Coherence Constraints
-
-**Problem**: Generated pages must be **coherent**!
-
-Bad page:
-```text
-1. Action movies for you
-2. Action movies for you (duplicate!)
-3. Romantic comedies (sudden switch)
-```
-
-::: {.fragment}
-**Recall our utility function**:
-```text
-U[page | user] = Σᵢ U[tileᵢ] + Coherence(page) + Layout(page)
-```
-:::
-
----
-
-## Measuring Coherence
-
-**Coherence(page)** penalizes incoherent pages:
+**How to assign items to topics?**
 
 ::: {.incremental}
-- **Tile diversity**: `-λ · Σᵢ,ⱼ similarity(tileᵢ, tileⱼ)`
-- **Semantic flow**: `consistency(tile_themes)`
-- **Novelty decay**: Later tiles should add new information
+1. **Rule-based**: Metadata tags (genre, release date, etc.)
+2. **Clustering**: Group items by embeddings
+3. **LLM-based**: Use LLM to categorize items
+4. **Editorial**: Human-curated
+5. **Hybrid**: Combine multiple methods
 :::
 
 ::: {.fragment}
-**Example**:
-```python
-def coherence(tiles):
-    # Penalize duplicate themes
-    theme_diversity = -sum(
-        cosine_sim(tiles[i].theme, tiles[j].theme)
-        for i, j in pairs(tiles)
-    )
-
-    # Reward semantic progression
-    flow = semantic_consistency([t.header for t in tiles])
-
-    return theme_diversity + flow
-```
+**Trade-off**: Rigid rules vs. flexible semantic grouping
 :::
 
 ---
 
-## Training Data
+## From 2D Grid to 1D Sequence
 
-Where do we get page layouts for training?
+**Visual layout**: Page is a **2D grid**
 
-**Option 1**: Logged data
-- Capture pages shown to users
-- Label with engagement signals (clicks, watch time)
-
-**Option 2**: Simulate
-- Use heuristics to generate "good" pages
-- Reward pages that maximize diversity + relevance
-
-**Option 3**: Reinforcement Learning
-- Reward = `U[page | user]` (our utility function!)
-- Train policy to generate high-utility pages
-- Optimize expected utility: `E[U[page | user]]`
-
----
-
-## Training with Utility Functions
-
-**Supervised Learning**:
-```python
-# Generate page
-page = model.generate(user_context, catalog)
-
-# Compute utility (ground truth from engagement)
-utility = compute_utility(page, user, engagement_data)
-
-# Loss: MSE between predicted and actual utility
-loss = (model.predict_utility(page, user) - utility)²
+```text
+Row 1: [Item₁  Item₂  Item₃  Item₄  Item₅  Item₆ ]
+Row 2: [Item₇  Item₈  Item₉  Item₁₀ Item₁₁ Item₁₂]
+Row 3: [Item₁₃ Item₁₄ Item₁₅ Item₁₆ Item₁₇ Item₁₈]
 ```
 
 ::: {.fragment}
-**Reinforcement Learning**:
-```python
-# Generate page autoregressively
-page = []
-for t in range(max_tiles):
-    tile = policy.sample_tile(user, page_so_far)
-    page.append(tile)
-
-# Reward = utility function
-reward = U(page, user)  # α·Relevance + β·Diversity + ...
-policy.update(reward)
-```
-:::
-
----
-
-## Evaluation Metrics
-
-**Traditional RecSys**: Recall@K, NDCG@K (single slate)
-
-**Page Generation**: Need **multi-objective** metrics that measure `U[page | user]`!
-
-| **Metric**            | **What it Measures** | **Maps to** |
-|-----------------------|----------------------|-------------|
-| **Coverage**          | Items across all tiles | Catalog diversity |
-| **Tile Diversity**    | How different are tiles? | Coherence component |
-| **Coherence**         | Do tiles tell a story? | Coherence(page) |
-| **Engagement**        | CTR, watch time | Relevance proxy |
-| **Layout Quality**    | Visual hierarchy | Layout(page) |
-
-::: {.fragment}
-**Goal**: Metrics should reflect utility components!
-:::
-
----
-
-## Example: Alice's Generated Page
-
-**Input:**
-- User: Alice
-- Recent: [Toy Story, Finding Nemo, Up]
-- Time: Saturday evening
-
-**Output:**
+**Transformer input**: Need a **1D sequence**!
 
 ```text
-┌──────────────────────────────────┐
-│ 🎬 Continue Your Pixar Journey   │  ← Personalized header
-│ [Inside Out, Coco, Soul]          │  ← 3 items (small tile)
-├──────────────────────────────────┤
-│ More Like Up                      │
-│ [Wall-E, Ratatouille, Brave,     │  ← 8 items (large carousel)
-│  Monsters Inc, Finding Dory, ...]│
-├──────────────────────────────────┤
-│ New Family Favorites              │
-│ [Elemental, Turning Red]          │  ← 2 items (new releases)
-└──────────────────────────────────┘
-```
-
-**Generated properties:**
-- 3 tiles (not fixed!)
-- Personalized headers
-- Varying tile sizes
-
----
-
-## Alice's Page: Utility Breakdown
-
-**Calculating U[page | Alice]**:
-
-```text
-Tile 1 utility:
-  Relevance: 0.92 (Pixar continuation)
-  Diversity: 0.60 (3 different movies)
-  → U[tile₁] = 0.85
-
-Tile 2 utility:
-  Relevance: 0.88 (similar to Up)
-  Diversity: 0.75 (8 varied items)
-  → U[tile₂] = 0.84
-
-Tile 3 utility:
-  Relevance: 0.70 (exploration: new releases)
-  Diversity: 0.50 (only 2 items)
-  → U[tile₃] = 0.65
-```
-
----
-
-## Alice's Page: Full Utility
-
-**Continuing the calculation**:
-
-```text
-Within-tile utility: 0.85 + 0.84 + 0.65 = 2.34
-
-Coherence(page):
-  Theme diversity: 0.80 (Pixar → Similar → New)
-  Semantic flow: 0.75 (progressive exploration)
-  → Coherence = 0.78
-
-Layout quality:
-  Size balance: 0.85 (small → large → small)
-  Position flow: 0.90 (hero → carousel → banner)
-  → Layout = 0.88
-
-────────────────────────────────────
-U[page | Alice] = 2.34 + 0.78 + 0.88 = 4.00
-```
-
----
-
-## Research Frontiers
-
-**Current challenges:**
-
-1. **Scalability**: Generating pages in real-time (< 100ms)
-2. **Controllability**: Allow business rules (e.g., "always include trending")
-3. **Evaluation**: Offline metrics don't predict online performance
-4. **Interpretability**: Why did the model generate this layout?
-
-**Open questions:**
-
-- How to incorporate user feedback in real-time?
-- Can we generate pages for **new users** (cold-start)?
-- Multi-modal generation (text + images + video)?
-
----
-
-## Related Work
-
-**Slate Recommendation:**
-- Ie et al., "SlateQ: A Tractable Decomposition for Reinforcement Learning with Recommendation Slates" (2019)
-
-**List-wise Ranking:**
-- Cao et al., "Learning to Rank: From Pairwise Approach to Listwise Approach" (2007)
-
-**Generative Models:**
-- Your research! (cite your papers here)
-
-**Layout Generation:**
-- Li et al., "LayoutLM: Pre-training of Text and Layout" (2020) - for documents
-- Adapt for recommendation pages
-
----
-
-## Connection to GenAI
-
-**Text Generation:**
-```text
-LLM: The cat → sat → on → the → mat
-```
-
-**Page Generation:**
-```text
-PageGen: Tile₁ → Tile₂ → Tile₃ → ...
-```
-
-**Same autoregressive paradigm!**
-
-::: {.fragment}
-Future: **Multimodal LLMs** that generate full UIs, not just text.
-:::
-
----
-
-## Practical Considerations
-
-**Deploying generative page models:**
-
-1. **Candidate retrieval**: Generate tile concepts
-2. **Item filling**: Populate with retrieval model (EASE, SASRec)
-3. **Re-ranking**: Apply business rules
-4. **A/B testing**: Compare vs. baseline
-
-**Hybrid approach:**
-- Use generative model for *exploration*
-- Fall back to templates for *stability*
-
----
-
-## Capstone Exercise {.center}
-
-**Your turn to design!**
-
-See `notebooks/07_capstone_exercise.qmd`
-
----
-
-## Exercise Instructions
-
-**Given:**
-- User profile (interaction history)
-- Catalog (available items)
-- Constraints (max 5 tiles, at least 20 items total)
-
-**Task:**
-1. Design a page generation policy
-2. Specify tile types and item selection
-3. Justify coherence and diversity
-
-**Deliverable:**
-- Sketch of page layout
-- Pseudocode for tile generation
-- Discussion of trade-offs
-
-*Work in pairs or small groups (10 min)*
-
----
-
-## Debrief
-
-Let's share some designs!
-
-- What tile types did you choose?
-- How did you ensure diversity?
-- How did you balance personalization vs. exploration?
-
----
-
-## The Progression: Items → Slates → Pages
-
-**Level 1: Item Ranking**
-```text
-Maximize: score(item | user)
-Output: Ranked list
-```
-
-::: {.fragment}
-**Level 2: Slate Optimization** (previous slides)
-```text
-Maximize: U[slate | user] = α·Relevance + β·Diversity + ...
-Output: Optimized set of items
+[Item₁, Item₂, Item₃, ..., Item₁₈]
 ```
 :::
 
 ::: {.fragment}
-**Level 3: Page Generation** (this section)
-```text
-Maximize: U[page | user] = Σᵢ U[tileᵢ] + Coherence + Layout
-Output: Sequence of tiles with metadata
-```
+**Problem**: Lost spatial information! Which item is in which row/column?
 :::
 
 ---
 
-## Key Takeaways
+## 2D Positional Embeddings
 
-1. **Pages extend slates** → From `U[S|user]` to `U[page|user]`
-2. **Pages are sequences** → Use autoregressive generation
-3. **Tiles are structured** → Need richer representations than items
-4. **Multi-level optimization** → Within-tile + across-tile utility
-5. **Evaluation is multi-faceted** → Coverage, diversity, coherence, engagement
-6. **Hybrid approaches** → Generative + retrieval + rules
+**Solution**: Add **2D position embeddings** to preserve grid structure
 
 ::: {.fragment}
-**The future**: Personalized UIs generated end-to-end by transformers!
+For each item at position (row, col):
+
+```text
+item_embedding = item_emb + row_emb + col_emb
+```
+:::
+
+::: {.fragment}
+Similar to **Image Transformer** by [@parmar2018image]
 :::
 
 ---
 
-## What We've Covered Today
+## Attention Patterns in 2D Grids
 
-```{mermaid}
-%%| fig-width: 10
-%%| fig-height: 4
-graph LR
-    A[Matrix<br/>Factorization] --> B[EASE]
-    B --> C[SASRec]
-    C --> D[LLM<br/>Recommendation]
-    D --> E[Slate<br/>Optimization]
-    E --> F[Page<br/>Generation]
+**1D sequence attention** (traditional):
 
-    style A fill:#e8f4f8
-    style B fill:#d1e7f0
-    style C fill:#b9dae8
-    style D fill:#a8d0e0
-    style E fill:#8ac0d8
-    style F fill:#72b3d0
+```text
+Item₁ → Item₂ → Item₃ → ... → Item₁₈
+  ↓      ↓        ↓             ↓
+All items attend to all other items equally
 ```
 
-**A complete journey**: Classical → Sequential → Slates → Generative
+::: {.fragment}
+**2D grid attention** (with position embeddings):
+
+```text
+Row 1: Item₁ → Item₂ → Item₃  (strong within-row attention)
+         ↓       ↓       ↓
+Row 2: Item₄ → Item₅ → Item₆  (weaker across-row attention)
+```
+:::
 
 ---
 
-## Next Steps & Resources
 
-See `slides/08_wrapup.qmd` for:
+## Summary: Key Concepts {.center}
 
-- Research roadmap
-- Paper reading list
-- Advanced notebooks
-- Community resources
+::: {.incremental}
+1. **From slates to whole pages**: Multi-carousel optimization
+2. **@ding2019whole**: Formalized whole page optimization
+3. **@kislinger2025full**: Modular framework with two-stage approach
+4. **2D positional embeddings**: Preserve grid structure in 1D sequence
+5. **Topic constraints**: Items must match carousel themes
+:::
 
-**Thank you for participating!** 🎉
+---
+
+## References
+
+::: {#refs}
+:::

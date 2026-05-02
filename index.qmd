@@ -1,6 +1,7 @@
 ---
 title: "Recommender Systems in the Age of Generative AI"
 subtitle: "ML Prague 2026 Workshop"
+format: html
 ---
 
 ::: {.callout-note appearance="simple"}
@@ -17,7 +18,7 @@ This hands-on workshop takes you on a complete journey through modern recommenda
 
 **What you'll build:**
 
-- **Matrix Factorization** and **EASE** (classical collaborative filtering)
+- **EASE** - Embarrassingly Shallow Autoencoders (collaborative filtering)
 - **SASRec** - Transformer-based sequential recommendation
 - **LLM-powered recommendations** (zero-shot, metadata generation)
 - **Conversational recommendation** (chat-based item discovery)
@@ -28,7 +29,7 @@ This hands-on workshop takes you on a complete journey through modern recommenda
 |         | Topic                     | Duration |
 |---------|---------------------------|----------|
 |         | Introduction & Motivation | 20 min   |
-| **I**   | Foundations: MF & EASE    | 30 min   |
+| **I**   | Foundations               | 30 min   |
 | **II**  | Transformers & SASRec     | 40 min   |
 |         | _Break_                   | 30 min   |
 | **III** | LLMs for Recommendation   | 50 min   |
@@ -38,9 +39,9 @@ This hands-on workshop takes you on a complete journey through modern recommenda
 ## What You'll Learn
 
 ### I. Classical Foundations
-**MovieLens dataset, Matrix Factorization, EASE, Two-Tower Models**
+**MovieLens dataset, EASE, Two-Tower Models**
 
-Explore the MovieLens dataset and learn how matrix factorization won the Netflix Prize ($1M competition organized by Netflix). Discover why simpler linear models (EASE) often work just as well, and understand the two-tower architecture that powers YouTube and Google Play recommendations at massive scale. Master the fundamentals of embedding-based retrieval.
+Explore the MovieLens dataset and learn about collaborative filtering with EASE (Embarrassingly Shallow Autoencoders), a simple yet powerful linear model that learns item-item similarity. Understand the two-tower architecture that powers YouTube and Google Play recommendations at massive scale. Master the fundamentals of embedding-based retrieval.
 
 ### II. Sequential Models
 **Transformer architecture, SASRec, User embedding**
@@ -104,6 +105,12 @@ Before the workshop, please install:
 - **Ollama** - Local LLM runtime: [ollama.com/download](https://ollama.com/download)
 
 ### Setup
+
+Clone the repository:
+
+```bash
+git clone https://github.com/jankislinger/recsys-genai.git
+```
 
 Download the MovieLens dataset:
 

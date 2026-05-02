@@ -1,0 +1,79 @@
+---
+title: "Part II.b: Transformers for Recommendation"
+subtitle: "Sequential Modeling with Self-Attention"
+format: revealjs
+---
+
+## Motivation: Sequences Matter
+
+Users consume items in **sequences** with **temporal dynamics**
+
+::: {.fragment}
+**Traditional methods ignore:**
+
+- Order of interactions
+- Recency effects
+- Short-term intent
+:::
+
+# How can we apply transformers to a sequence of items?
+
+---
+
+## Applying GPT-Style models
+
+::: {.fragment}
+Predict **next item**
+:::
+
+::: {.fragment}
+**SASRec** [@kang2018self]
+
+- Self-Attentive Sequential Recommendation
+- Causal masking prevents "seeing the future"
+- Cross-entropy loss over item vocabulary
+:::
+
+::: {.fragment}
+```text
+ Input:   [i₁]  [i₂]  [i₃]  [i₄]
+           ↓     ↓     ↓     ↓
+         causal attention (masked)
+           ↓     ↓     ↓     ↓
+ Predict: [i₂]  [i₃]  [i₄]  [i₅]
+```
+:::
+
+
+---
+
+## Applying BERT-Style models
+
+
+::: {.fragment}
+Estimate **user embedding**
+:::
+
+::: {.fragment}
+**BERT4Rec** [@sun2019bert4rec]
+
+- Randomly mask items during training
+- Can attend to both past AND future items
+- Learns richer user representation from bidirectional context
+:::
+
+::: {.fragment}
+```text
+Input:    [cls]  [i₁]  [MASK]  [i₃]
+           ↓      ↓     ↓       ↓
+           bi-directional attention
+           ↓      ↓     ↓       ↓
+Predict:  [emb]  [?]   [i₂]    [?]
+```
+:::
+
+---
+
+## Let's implement SASRec
+
+Open `notebooks/04_sasrec.qmd`

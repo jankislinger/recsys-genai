@@ -1,19 +1,8 @@
 ---
 title: 'Part III.a: LLMs for Recommendation'
 subtitle: Zero-Shot Recommendation and Metadata Generation
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .qmd
-      format_name: quarto
-      format_version: '1.0'
-      jupytext_version: 1.19.1
-  kernelspec:
-    display_name: Python 3 (ipykernel)
-    language: python
-    name: python3
-execute:
-  output: text
+jupyter: python3
+format: html
 ---
 
 # Introduction
@@ -41,6 +30,8 @@ import os
 import numpy as np
 import polars as pl
 from IPython.display import Markdown, display
+from plotnine import *
+from sklearn.metrics.pairwise import cosine_similarity
 
 from recsys_genai.data_utils import load_movielens
 from recsys_genai.llm_utils import (
@@ -54,30 +45,46 @@ from recsys_genai.notebook_utils import (
     ollama_model_link,
     show_prompt,
     show_response,
+    tmdb_images,
 )
 ```
 
 ```{python}
 #| label: setup
 
-LLM_MODEL = os.getenv("LLM_MODEL", "ministral-3:3b")
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v2-moe")
-
-movies, ratings, tags, links = load_movielens("../data")
+theme_set(
+    theme_minimal()
+    + theme(
+        plot_title=element_text(weight="bold", size=14),
+        axis_title=element_text(size=12),
+        figure_size=(8, 6),
+    )
+)
 
 pl.Config(
     fmt_str_lengths=50,
     tbl_rows=20,
 )
 
-Markdown(
-f"""\
+LLM_MODEL = os.getenv("LLM_MODEL", "ministral-3:3b")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v2-moe")
+
+display(
+    Markdown(
+        f"""
 **Selected models:**
 
 - Generative: {ollama_model_link(LLM_MODEL)}
 - Embedding: {ollama_model_link(EMBED_MODEL)}
 """
+    )
 )
+```
+
+```{python}
+#| label: load-data
+
+movies, ratings, tags, links = load_movielens("../data")
 ```
 
 # The Cold-Start Problem
@@ -99,7 +106,7 @@ new_movie = {
         "In a city where fire, water, land and air residents live together, "
         "a fiery young woman and a go-with-the-flow guy discover something "
         "elemental: how much they actually have in common."
-    )
+    ),
 }
 
 display(Markdown("**New Movie:**"))
@@ -201,13 +208,11 @@ Modern LLMs can embed text into dense vectors. We can:
 
 ```{python}
 #| label: embedding-similarity
-from sklearn.metrics.pairwise import cosine_similarity
 
 # Select favorite movies
 alice_id = 1
 alice_favorites = (
-    ratings
-    .filter(pl.col("user_id") == alice_id)
+    ratings.filter(pl.col("user_id") == alice_id)
     .top_k(10, by="rating")
     .join(movies, on="movie_id")
     .select("movie_id", "title", "genres")
@@ -219,13 +224,13 @@ alice_favorites
 ```{python}
 #| label: display-alice-posters
 
-from recsys_genai.notebook_utils import tmdb_images
-
 # Load posters
 posters = pl.read_parquet("../data/shared/posters.parquet")
 
-# Get poster paths for Alice's favorites
-alice_with_posters = alice_favorites.join(posters, on="movie_id", how="inner")
+# Get poster paths for Alice's favorites (join via links to get tmdb_id)
+alice_with_posters = alice_favorites.join(
+    links.select(["movie_id", "tmdb_id"]), on="movie_id"
+).join(posters, on="tmdb_id", how="inner")
 poster_paths = alice_with_posters["poster_path"].to_list()
 
 display(Markdown(f"**Alice's Favorite Movies**:"))
@@ -241,18 +246,11 @@ movie_texts = movies.with_columns(
 )
 
 # User profile: concatenate favorite movie texts
-alice_fav_ids = (
-    ratings
-    .filter((pl.col("user_id") == alice_id) & (pl.col("rating") >= 4.5))
-    ['movie_id']
-    .to_list()
-)
+alice_fav_ids = ratings.filter((pl.col("user_id") == alice_id) & (pl.col("rating") >= 4.5))[
+    "movie_id"
+].to_list()
 
-alice_profile_texts = (
-    movie_texts
-    .join(alice_favorites, on="movie_id", how="semi")
-    ['text'].to_list()
-)
+alice_profile_texts = movie_texts.join(alice_favorites, on="movie_id", how="semi")["text"].to_list()
 
 alice_profile = "\n".join(alice_profile_texts)  # Use first 5 to keep it concise
 display(Markdown(f"**Alice's Profile:**\n\n{alice_profile}"))
@@ -263,25 +261,18 @@ display(Markdown(f"**Alice's Profile:**\n\n{alice_profile}"))
 
 # Get list of most rated movies
 # This ensures that the demo has familiar movies
-most_rated_movies = (
-    ratings
-    .group_by("movie_id")
-    .len("num_ratings")
-    .top_k(500, by="num_ratings")
-)
+most_rated_movies = ratings.group_by("movie_id").len("num_ratings").top_k(500, by="num_ratings")
 ```
 
 ```{python}
 #| label: embed-candidates
 
 # Exclude movies Alice has already rated
-candidate_sample = (
-    movie_texts
-    .join(most_rated_movies, on="movie_id", how="semi")
-    .join(alice_favorites, on="movie_id", how="anti")
+candidate_sample = movie_texts.join(most_rated_movies, on="movie_id", how="semi").join(
+    alice_favorites, on="movie_id", how="anti"
 )
-candidate_texts = candidate_sample['text'].to_list()
-candidate_ids = candidate_sample['movie_id'].to_list()
+candidate_texts = candidate_sample["text"].to_list()
+candidate_ids = candidate_sample["movie_id"].to_list()
 
 # Embed user profile
 user_embedding = ollama_embed(alice_profile, model=EMBED_MODEL)
@@ -326,8 +317,10 @@ top_movies_llm
 ```{python}
 #| label: display-embedding-rec-posters
 
-# Display posters for recommendations
-rec_with_posters = top_movies_llm.join(posters, on="movie_id", how="inner")
+# Display posters for recommendations (join via links to get tmdb_id)
+rec_with_posters = top_movies_llm.join(links.select(["movie_id", "tmdb_id"]), on="movie_id").join(
+    posters, on="tmdb_id", how="inner"
+)
 rec_poster_paths = rec_with_posters["poster_path"].to_list()
 
 display(Markdown(f"**Recommended for Alice**"))
@@ -352,8 +345,8 @@ example_movie = movies.filter(pl.col("title").str.contains("Gump")).to_dicts()[0
 metadata_prompt = f"""\
 You are a film analyst. Generate metadata for this movie:
 
-Title: {example_movie['title']}
-Genres: {', '.join(example_movie['genres'])}
+Title: {example_movie["title"]}
+Genres: {", ".join(example_movie["genres"])}
 
 Generate:
 1. Three thematic tags (e.g., friendship, adventure)
@@ -376,7 +369,7 @@ display(show_prompt(metadata_prompt))
 generated_metadata = ollama_generate_json(
     metadata_prompt,
     model=LLM_MODEL,
-    temperature=0.3  # Lower temperature for more structured output
+    temperature=0.3,  # Lower temperature for more structured output
 )
 
 display(show_response(generated_metadata))
@@ -404,13 +397,11 @@ We'll generate three types of descriptions for each movie:
 #| label: batch-metadata-sample-movies
 
 # Sample from most-rated movies
-sample_movies = (
-    movies
-    .join(most_rated_movies, on="movie_id", how="semi")
-    .sample(n=30, seed=42)
-)
+sample_movies = movies.join(most_rated_movies, on="movie_id", how="semi").sample(n=30, seed=42)
 
-display(Markdown(f"**Sampled {len(sample_movies)} movies** from most-rated for metadata generation"))
+display(
+    Markdown(f"**Sampled {len(sample_movies)} movies** from most-rated for metadata generation")
+)
 display(Markdown("**Sample titles:**"))
 sample_movies.select("title")
 ```
@@ -420,6 +411,7 @@ sample_movies.select("title")
 
 # Retrying multiple times in case of invalid response
 # Small LLMs sometimes fail to follow instruction about structure
+
 
 @retry(3, exceptions=(ValueError, json.JSONDecodeError))
 def generate_movie_metadata(title, genres):
@@ -431,7 +423,7 @@ def generate_movie_metadata(title, genres):
     prompt = f"""You are a film critic. Describe this movie along three dimensions:
 
 Title: {title}
-Genres: {', '.join(genres) if genres else 'Unknown'}
+Genres: {", ".join(genres) if genres else "Unknown"}
 
 Generate brief descriptions (up to 2 sentences each):
 
@@ -461,8 +453,8 @@ llm_metadata = []
 print("Generating multi-dimensional metadata...")
 
 for i, movie in enumerate(sample_movies.to_dicts()):
-    print(f"  [{i+1}/{len(sample_movies)}] {movie['title']}")
-    metadata = generate_movie_metadata(movie['title'], movie['genres'])
+    print(f"  [{i + 1}/{len(sample_movies)}] {movie['title']}")
+    metadata = generate_movie_metadata(movie["title"], movie["genres"])
     llm_metadata.append(metadata)
 
 llm_metadata_df = pl.DataFrame(llm_metadata)
@@ -478,9 +470,7 @@ show_response(llm_metadata[:3])
 ```{python}
 #| label: enrich-movies-df
 
-enriched_df = (
-    pl.concat([sample_movies, llm_metadata_df], how="horizontal")
-)
+enriched_df = pl.concat([sample_movies, llm_metadata_df], how="horizontal")
 ```
 
 ```{python}
@@ -489,17 +479,19 @@ enriched_df = (
 # Display first movie with full metadata
 first_movie = enriched_df.to_dicts()[0]
 
-display(Markdown(f"""
-**Example: {first_movie['title']}**
+display(
+    Markdown(f"""
+**Example: {first_movie["title"]}**
 
-**Genres:** {', '.join(first_movie['genres'])}
+**Genres:** {", ".join(first_movie["genres"])}
 
-**Mood:** {first_movie['mood']}
+**Mood:** {first_movie["mood"]}
 
-**Target Audience:** {first_movie['target_audience']}
+**Target Audience:** {first_movie["target_audience"]}
 
-**Plot Essence:** {first_movie['plot_essence']}
-"""))
+**Plot Essence:** {first_movie["plot_essence"]}
+""")
+)
 ```
 
 ### Embed Each Dimension
@@ -510,9 +502,9 @@ Now let's embed each metadata dimension separately. This allows us to find simil
 #| label: embed-dimensions
 
 # Extract text for each dimension
-mood_texts = enriched_df['mood'].to_list()
-audience_texts = enriched_df['target_audience'].to_list()
-plot_texts = enriched_df['plot_essence'].to_list()
+mood_texts = enriched_df["mood"].to_list()
+audience_texts = enriched_df["target_audience"].to_list()
+plot_texts = enriched_df["plot_essence"].to_list()
 
 print("Generating embeddings for each dimension...")
 print(f"  - Mood: {len(mood_texts)} descriptions")
@@ -568,8 +560,6 @@ display(Markdown(f"**Reference Movie:** {reference_movie['title']}"))
 display(Markdown(f"**Genres:** {', '.join(reference_movie['genres'])}"))
 
 # Compute cosine similarity for each dimension
-from sklearn.metrics.pairwise import cosine_similarity
-
 # Mood similarities
 mood_ref = mood_matrix[reference_idx].reshape(1, -1)
 mood_similarities = cosine_similarity(mood_ref, mood_matrix)[0]
@@ -587,14 +577,18 @@ plot_similarities = cosine_similarity(plot_ref, plot_matrix)[0]
 #| label: create-similarity-dataframes
 
 # Create dataframe with similarities for each dimension
-similarity_df = enriched_df.select(["movie_id", "title", "mood", "target_audience", "plot_essence"]).with_columns([
-    pl.Series("mood_similarity", mood_similarities),
-    pl.Series("audience_similarity", audience_similarities),
-    pl.Series("plot_similarity", plot_similarities),
-])
+similarity_df = enriched_df.select(
+    ["movie_id", "title", "mood", "target_audience", "plot_essence"]
+).with_columns(
+    [
+        pl.Series("mood_similarity", mood_similarities),
+        pl.Series("audience_similarity", audience_similarities),
+        pl.Series("plot_similarity", plot_similarities),
+    ]
+)
 
 # Exclude the reference movie itself (similarity = 1.0)
-other_movies_df = similarity_df.filter(pl.col("title") != reference_movie['title'])
+other_movies_df = similarity_df.filter(pl.col("title") != reference_movie["title"])
 
 print(f"✅ Computed similarities for {len(other_movies_df)} movies")
 ```
@@ -602,7 +596,9 @@ print(f"✅ Computed similarities for {len(other_movies_df)} movies")
 ```{python}
 #| label: display-similarity-sample
 
-other_movies_df.select(["title", "mood_similarity", "audience_similarity", "plot_similarity"]).head()
+other_movies_df.select(
+    ["title", "mood_similarity", "audience_similarity", "plot_similarity"]
+).head()
 ```
 
 ```{python}
@@ -612,7 +608,11 @@ display(Markdown("### Most Similar by Mood\n"))
 
 sorted_by_mood = other_movies_df.sort("mood_similarity", descending=True)
 for movie in sorted_by_mood.select(["title", "mood", "mood_similarity"]).head(5).to_dicts():
-    display(Markdown(f"**• {movie['title']}** (similarity: {movie['mood_similarity']:.3f})  \n  *Mood: {movie['mood']}*\n"))
+    display(
+        Markdown(
+            f"**• {movie['title']}** (similarity: {movie['mood_similarity']:.3f})  \n  *Mood: {movie['mood']}*\n"
+        )
+    )
 ```
 
 ```{python}
@@ -621,8 +621,16 @@ for movie in sorted_by_mood.select(["title", "mood", "mood_similarity"]).head(5)
 display(Markdown("### Most Similar by Target Audience\n"))
 
 sorted_by_audience = other_movies_df.sort("audience_similarity", descending=True)
-for movie in sorted_by_audience.select(["title", "target_audience", "audience_similarity"]).head(5).to_dicts():
-    display(Markdown(f"**• {movie['title']}** (similarity: {movie['audience_similarity']:.3f})  \n  *Audience: {movie['target_audience']}*\n"))
+for movie in (
+    sorted_by_audience.select(["title", "target_audience", "audience_similarity"])
+    .head(5)
+    .to_dicts()
+):
+    display(
+        Markdown(
+            f"**• {movie['title']}** (similarity: {movie['audience_similarity']:.3f})  \n  *Audience: {movie['target_audience']}*\n"
+        )
+    )
 ```
 
 ```{python}
@@ -632,7 +640,11 @@ display(Markdown("### Most Similar by Plot Essence\n"))
 
 sorted_by_plot = other_movies_df.sort("plot_similarity", descending=True)
 for movie in sorted_by_plot.select(["title", "plot_essence", "plot_similarity"]).head(5).to_dicts():
-    display(Markdown(f"**• {movie['title']}** (similarity: {movie['plot_similarity']:.3f})  \n  *Plot: {movie['plot_essence']}*\n"))
+    display(
+        Markdown(
+            f"**• {movie['title']}** (similarity: {movie['plot_similarity']:.3f})  \n  *Plot: {movie['plot_essence']}*\n"
+        )
+    )
 ```
 
 **Key Insights**:
@@ -656,10 +668,17 @@ mood_top5 = sorted_by_mood.head(5)
 audience_top5 = sorted_by_audience.head(5)
 plot_top5 = sorted_by_plot.head(5)
 
-# Join with posters
-mood_posters = mood_top5.join(posters, on="movie_id", how="inner", maintain_order="left")
-audience_posters = audience_top5.join(posters, on="movie_id", how="inner", maintain_order="left")
-plot_posters = plot_top5.join(posters, on="movie_id", how="inner", maintain_order="left")
+# Join with posters (via links to get tmdb_id)
+links_tmdb = links.select(["movie_id", "tmdb_id"])
+mood_posters = mood_top5.join(links_tmdb, on="movie_id").join(
+    posters, on="tmdb_id", how="inner", maintain_order="left"
+)
+audience_posters = audience_top5.join(links_tmdb, on="movie_id").join(
+    posters, on="tmdb_id", how="inner", maintain_order="left"
+)
+plot_posters = plot_top5.join(links_tmdb, on="movie_id").join(
+    posters, on="tmdb_id", how="inner", maintain_order="left"
+)
 
 # Display each dimension
 display(Markdown(f"**Reference:** {reference_movie['title']}\n"))
@@ -742,11 +761,7 @@ Transcript:
 Output ONLY the description text (no extra formatting):
 """
 
-video_description = ollama_generate(
-    description_prompt,
-    model=LLM_MODEL,
-    temperature=0.3
-)
+video_description = ollama_generate(description_prompt, model=LLM_MODEL, temperature=0.3)
 
 display(Markdown(f"**Generated Video Description:**\n\n{video_description}"))
 ```
@@ -777,11 +792,7 @@ Output ONLY valid JSON:
 }}
 """
 
-video_metadata = ollama_generate_json(
-    metadata_prompt,
-    model=LLM_MODEL,
-    temperature=0.3
-)
+video_metadata = ollama_generate_json(metadata_prompt, model=LLM_MODEL, temperature=0.3)
 
 display(Markdown("**Generated Metadata:**"))
 show_response(video_metadata)
@@ -802,15 +813,23 @@ video_vec = np.array(video_embedding).reshape(1, -1)
 video_plot_similarities = cosine_similarity(video_vec, plot_matrix)[0]
 
 # Create results dataframe
-video_similarity_df = enriched_df.select(["title", "plot_essence"]).with_columns([
-    pl.Series("similarity", video_plot_similarities)
-])
+video_similarity_df = enriched_df.select(["title", "plot_essence"]).with_columns(
+    [pl.Series("similarity", video_plot_similarities)]
+)
 
-display(Markdown(f"Comparing video to **{len(video_similarity_df)} movies**...\n\n### Top 5 Most Similar Movies by Content\n"))
+display(
+    Markdown(
+        f"Comparing video to **{len(video_similarity_df)} movies**...\n\n### Top 5 Most Similar Movies by Content\n"
+    )
+)
 
 top_similar = video_similarity_df.sort("similarity", descending=True).head(5)
 for movie in top_similar.to_dicts():
-    display(Markdown(f"**• {movie['title']}** (similarity: {movie['similarity']:.3f})  \n  *Plot: {movie['plot_essence']}*\n"))
+    display(
+        Markdown(
+            f"**• {movie['title']}** (similarity: {movie['similarity']:.3f})  \n  *Plot: {movie['plot_essence']}*\n"
+        )
+    )
 ```
 
 **Key Insight**:

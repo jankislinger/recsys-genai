@@ -1,0 +1,127 @@
+---
+title: "Part I.b: EASE - Embarrassingly Shallow Autoencoders"
+subtitle: "A Simple Yet Powerful Baseline for Collaborative Filtering"
+format: revealjs
+---
+
+## From Matrix Factorization to EASE {.center}
+
+**We just learned**: Matrix Factorization decomposes $R \approx U \times V^T$
+
+::: {.fragment}
+**But what if we could skip the factorization?**
+:::
+
+::: {.fragment}
+**EASE** [@steck2019embarrassingly]: Learn item-item similarities **directly**
+:::
+
+::: {.fragment}
+- No iterations
+- No neural networks
+- Closed-form solution!
+:::
+
+---
+
+## The EASE Idea
+
+**Classic autoencoder**: Learn to reconstruct input through bottleneck
+
+$$\text{Input} \rightarrow \text{Encoder} \rightarrow \text{Bottleneck} \rightarrow \text{Decoder} \rightarrow \text{Output}$$
+
+::: {.fragment}
+**EASE**: Skip the bottleneck! Learn reconstruction weights directly
+
+$$X \approx X \cdot B$$
+
+where $B$ is an item-item similarity matrix
+:::
+
+::: {.fragment}
+**Constraint**: $\text{diag}(B) = 0$ (can't predict item from itself)
+:::
+
+---
+
+## Intuition: Item-Item Similarities
+
+**How does $\hat{X} = X \cdot B$ make recommendations?**
+
+::: {.fragment}
+**Users**: Alice watched [Toy Story], Bob watched [Godfather, Die Hard]
+
+**Item-item similarity matrix B** (learned from all users):
+
+|                | Toy Story | Godfather | Die Hard | Inside Out | Heat |
+|----------------|-----------|-----------|----------|------------|------|
+| **Toy Story**  | 0.0       | 0.01      | 0.02     | 0.18       | 0.01 |
+| **Godfather**  | 0.01      | 0.0       | 0.08     | 0.02       | 0.15 |
+| **Die Hard**   | 0.02      | 0.08      | 0.0      | 0.01       | 0.12 |
+:::
+
+::: {.fragment}
+**Alice**: Inside Out = 0.18 ✅ | Heat = 0.01 ❌
+
+**Bob**: Heat = 0.15 + 0.12 = 0.27 ✅ | Inside Out = 0.02 + 0.01 = 0.03 ❌
+:::
+
+---
+
+## Let's Build EASE! {.center}
+
+
+---
+
+## EASE Strengths & Weaknesses
+
+::: {.columns}
+::: {.column width="50%"}
+**Strengths** ✅
+
+- **Simple**: Closed-form solution
+- **Fast**: No iterations needed
+- **Strong baseline**: Competitive with complex models
+- **Interpretable**: Item-item similarities
+:::
+
+::: {.column width="50%"}
+**Weaknesses** ❌
+
+- **Memory**: Dense $B$ matrix (O(n²) for n items)
+- **Cold start**: Can't handle new items without retraining
+- **No sequences**: Doesn't model temporal patterns
+:::
+:::
+
+::: {.fragment}
+**Bottom line**: Excellent baseline, but not the final answer!
+:::
+
+---
+
+## EASE in Practice
+
+**When to use EASE**:
+
+- As a **strong baseline** to compare against
+- For **medium-scale** item catalogs (< 100K items)
+- When you need **fast training** and simple deployment
+- For **implicit feedback** data (clicks, views, purchases)
+
+::: {.fragment}
+**Real-world impact**:
+
+Many production systems use EASE as:
+
+1. Initial baseline before investing in complex models
+2. Fallback when neural models fail
+3. Component in ensemble systems
+:::
+
+---
+
+## References
+
+::: {#refs}
+:::

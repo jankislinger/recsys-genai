@@ -1,7 +1,7 @@
 ---
 title: "References"
 subtitle: "Key Papers & Resources for RecSys GenAI Workshop"
-bibliography: references.bib
+format: html
 nocite: |
   @*
 ---
