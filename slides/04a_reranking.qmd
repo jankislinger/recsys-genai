@@ -1,0 +1,298 @@
+---
+title: "Part IV.a: Reranking and Slate Optimization"
+subtitle: "Beyond Greedy Item Ranking"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    incremental: false
+---
+
+## The Problem with Greedy Ranking {.center}
+
+We've learned to rank items by **relevance scores**:
+
+```text
+Item 1: score = 0.95  ✓
+Item 2: score = 0.92  ✓
+Item 3: score = 0.89  ✓
+...
+Item 10: score = 0.75 ✓
+```
+
+**But is this optimal?**
+
+---
+
+## A Motivating Example
+
+**Alice just finished watching:**
+
+
+*The Fellowship of the Ring (2001)*
+
+::: {.fragment}
+**Standard ranking gives her:**
+
+::: {layout-ncol=5}
+![](https://image.tmdb.org/t/p/w154/5VTN0pR8gcqV3EPUHHfMGnJYN9L.jpg)
+
+![](https://image.tmdb.org/t/p/w154/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg)
+
+![](https://image.tmdb.org/t/p/w154/yHA9Fc37VmpUA5UncTxxo3rTGVA.jpg)
+
+![](https://image.tmdb.org/t/p/w154/xQYiXsheRCDBA39DOrmaw1aSpbk.jpg)
+
+![](https://image.tmdb.org/t/p/w154/xT98tLqatZPQApyRmlPL12LtiWp.jpg)
+:::
+
+:::
+
+---
+
+## What's Wrong Here?
+
+::: {.incremental}
+- ✓ **Individually relevant**: Each item is similar to what Alice watched
+- ✗ **Lack of diversity**: All LOTR/Tolkien content
+- ✗ **No exploration**: What if Alice wants something different?
+- ✗ **Saturation**: Diminishing returns after item 2-3
+:::
+
+::: {.fragment}
+Optimizing each item **independently** ≠ optimal **list**
+:::
+
+---
+
+## From Items to Slates
+
+**Slate**: A set of items presented together
+
+::: {.fragment}
+$$
+S = [i_1, i_2, \ldots, i_k]
+$$
+:::
+
+::: {.fragment}
+**New goal**: Maximize utility of the **entire slate**
+
+$$
+\arg\max_{S} U[S \mid \text{user}]
+$$
+
+instead of
+
+$$
+\arg\max_{S} \sum_{i \in S} \text{score}(i \mid \text{user})
+$$
+:::
+
+---
+
+## What is a Slate?
+
+A **slate** is a collection of items shown to a user **at once**:
+
+::: {.incremental}
+- **Homepage**: 10 items in "Recommended for You"
+- **Search results**: Top 20 results
+- **Email digest**: 5 movies this week
+- **Carousel**: 8 items in "Because you watched X"
+:::
+
+::: {.fragment}
+User sees all items **simultaneously** (or nearly so)
+:::
+
+---
+
+## Utility Function Components
+
+What should `U[S | user]` capture?
+
+::: {.incremental}
+1. **Relevance**: Items match user preferences
+2. **Diversity**: Items cover different aspects
+3. **Exploration**: Include some novel/uncertain items
+4. **Coverage**: Represent different genres/categories
+5. **Fairness**: Don't over-represent popular items
+6. **Business objectives**: Promote new releases, monetize
+:::
+
+---
+
+## Diversity
+
+**Idea**: Items should be **different** from each other
+
+::: {.fragment}
+$$
+\text{Diversity}(S) = -\sum_{i,j \in S} \text{similarity}(i, j)
+$$
+
+or
+
+$$
+\text{Diversity}(S) = \frac{1}{|S|} \sum_{i \in S} \text{distance}(i, \text{centroid}(S))
+$$
+:::
+
+---
+
+## Exploration vs. Exploitation
+
+**Exploitation**: Show items we're confident user will like
+
+**Exploration**: Show items to learn user preferences
+
+<br>
+
+::: {.fragment}
+**Balance**: Cannot be done in isolation
+:::
+
+---
+
+## Coverage
+
+**Goal**: Represent the breadth of the catalog
+
+::: {.fragment}
+$$
+\text{Coverage}(S) = |\{\text{categories represented in } S\}|
+$$
+:::
+
+
+---
+
+## Putting It Together
+
+**Utility function** as weighted sum:
+
+```text
+U[S | user] = α·Relevance(S)
+            + β·Diversity(S)
+            + γ·Exploration(S)
+            + δ·Coverage(S)
+```
+
+---
+
+## Better Example for Alice
+
+Recall Alice just watched **The Fellowship of the Ring**
+
+::: {.fragment}
+**Slate-optimized** (relevance + diversity + exploration):
+
+::: {layout-ncol=5}
+![](https://image.tmdb.org/t/p/w154/5VTN0pR8gcqV3EPUHHfMGnJYN9L.jpg)
+
+![](https://image.tmdb.org/t/p/w154/sJEPpNEIELIxX8SzffqvBn62obx.jpg)
+
+![](https://image.tmdb.org/t/p/w154/2FC9L9MrjBoGHYjYZjdWQdopVYb.jpg)
+
+![](https://image.tmdb.org/t/p/w154/clfyMMg00OiowO5uupKpVKjRwmV.jpg)
+
+![](https://image.tmdb.org/t/p/w154/z7xXihu5wHuSMWymq5VAulPVuvg.jpg)
+:::
+:::
+
+---
+
+## Slate Optimization
+
+**Problem**: Finding optimal slate is **combinatorial**
+
+::: {.fragment}
+```text
+|catalog| = 10,000 items
+|slate| = 10 items
+
+Possible slates = C(10000, 10) ≈ 2.6 × 10^36
+```
+:::
+
+::: {.fragment}
+**We need to be smarter!**
+:::
+
+---
+
+## Three-stage Pipeline
+
+
+::: {.fragment}
+**1. Retrieval** (Candidate Generation)
+
+- Fast, approximate search over millions of items
+:::
+
+::: {.fragment}
+**2. Ranking** (Scoring)
+
+- Score and rank the candidates by relevance
+:::
+
+::: {.fragment}
+**3. Re-ranking** (Slate Optimization)
+
+- Optimize the final slate for multiple objectives
+:::
+
+---
+
+## Slate Scoring with RL
+
+**Reinforcement Learning formulation**:
+
+- **State**: User features, context
+- **Action**: Select slate S
+- **Reward**: User engagement (clicks, watch time)
+
+::: {.fragment}
+**SlateQ** by @ie2019slateq:
+
+- Decompose slate value into item contributions
+:::
+
+---
+
+## Slate Generation
+
+**Question**: If we can rank slates, why not **generate** optimal slates directly?
+
+::: {.fragment}
+**Seq2Slate** [@bello2018seq2slate]:
+:::
+
+::: {.incremental}
+- Encoder-Decoder RNN
+- Sequential Generation
+- Reinforcement Learning
+:::
+
+---
+
+## From Optimization to Generation {.center}
+
+**So far**: Optimize slate from candidate pool
+
+**Next**: **Generate** the entire recommendation surface
+
+→ See `slides/06_generative_pages.qmd`
+
+---
+
+## Key Takeaways
+
+::: {.incremental}
+1. **Greedy ranking** is suboptimal
+2. Utility functions with **multiple objectives**
+3. Leverage **reinforcement learning**
+:::
+
+---

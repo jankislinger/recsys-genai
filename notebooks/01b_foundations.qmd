@@ -1,5 +1,5 @@
 ---
-title: 'Part II.B: Foundation Recommendation Algorithms'
+title: 'Part I.b: Foundation Recommendation Algorithms'
 subtitle: Matrix Factorization and EASE
 jupyter:
   jupytext:
@@ -33,28 +33,21 @@ Now that we understand the MovieLens dataset, let's build recommendation systems
 ```{python}
 #| label: imports
 
-import numpy as np
-import polars as pl
-import torch
 from pathlib import Path
 
-from plotnine import *
+import numpy as np
 import pandas as pd
-from IPython.display import display, Markdown
-from sklearn.decomposition import PCA
+import polars as pl
+import torch
+from IPython.display import Markdown, display
+from plotnine import *
 from scipy.sparse import coo_matrix
+from sklearn.decomposition import PCA
 
-from recsys_genai import (
-    load_movielens,
-    create_user_item_matrix,
-    MatrixFactorization,
-    EASE,
-    recall_at_k,
-    ndcg_at_k,
-    evaluate_ranking
-)
+from recsys_genai.data_utils import create_user_item_matrix, load_movielens
+from recsys_genai.metrics import evaluate_ranking, ndcg_at_k, recall_at_k
+from recsys_genai.models import EASE, MatrixFactorization
 
-# Set default theme for all plots
 theme_set(theme_minimal() + theme(
     plot_title=element_text(weight='bold', size=14),
     axis_title=element_text(size=12)
@@ -64,7 +57,7 @@ theme_set(theme_minimal() + theme(
 # Load Data
 
 ```{python}
-#| label: load-data
+#| label: setup
 
 movies, ratings, tags, links = load_movielens("../data")
 
@@ -179,6 +172,63 @@ mf_model.fit(
     epochs=20,
     verbose=True
 )
+```
+
+```{python}
+#| label: save-embeddings
+
+# Save embeddings for use in other notebooks
+embeddings_dir = Path("data/embeddings")
+embeddings_dir.mkdir(exist_ok=True, parents=True)
+
+np.save(embeddings_dir / "mf_item_embeddings.npy", mf_model.item_factors)
+np.save(embeddings_dir / "mf_user_embeddings.npy", mf_model.user_factors)
+
+# Save mapping dictionaries as numpy arrays
+# Convert dict keys/values to arrays for storage
+item_ids = np.array(list(item_to_idx.keys()), dtype=np.int64)
+item_indices = np.array(list(item_to_idx.values()), dtype=np.int64)
+user_ids = np.array(list(user_to_idx.keys()), dtype=np.int64)
+user_indices = np.array(list(user_to_idx.values()), dtype=np.int64)
+
+np.savez(
+    embeddings_dir / "mappings.npz",
+    item_ids=item_ids,
+    item_indices=item_indices,
+    user_ids=user_ids,
+    user_indices=user_indices
+)
+
+print(f"Saved embeddings to {embeddings_dir}")
+print(f"  Item embeddings: {mf_model.item_factors.shape}")
+print(f"  User embeddings: {mf_model.user_factors.shape}")
+print(f"  Mappings: {len(item_to_idx)} items, {len(user_to_idx)} users")
+```
+
+```{python}
+#| label: train-mf-64d
+
+# Also train a higher-dimensional model for slate generation (Part IV.a)
+mf_model_64d = MatrixFactorization(
+    num_users=len(user_to_idx),
+    num_items=len(item_to_idx),
+    num_factors=64,  # Higher dimensional for better slate generation
+    learning_rate=0.01,
+    reg=0.01
+)
+
+print("\nTraining 64-dimensional MF model for slate generation...")
+mf_model_64d.fit(
+    user_ids=user_indices,
+    item_ids=item_indices,
+    ratings=rating_values,
+    epochs=20,
+    verbose=False
+)
+
+# Save 64-dimensional embeddings
+np.save(embeddings_dir / "mf_item_embeddings_64d.npy", mf_model_64d.item_factors)
+print(f"Saved 64-dim embeddings: {mf_model_64d.item_factors.shape}")
 ```
 
 ## Visualize Item Embeddings
@@ -761,7 +811,7 @@ We've explored two foundational collaborative filtering approaches:
 ## Next Steps
 
 In the remaining notebooks, we'll explore:
-- **Part III (SASRec)**: Sequential recommendation with self-attention
-- **Part IV (LLMs)**: Zero-shot and few-shot recommendations with language models
+- **Part II (SASRec)**: Sequential recommendation with self-attention
+- **Part III (LLMs)**: Zero-shot and few-shot recommendations with language models
 
 These modern approaches address limitations of classical CF (cold start, sequential patterns, semantic understanding).

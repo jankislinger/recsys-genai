@@ -1,5 +1,5 @@
 ---
-title: 'Part VI: Conversational Recommendation with Keyphrases'
+title: 'Part III.b: Conversational Recommendation with Keyphrases'
 subtitle: Keyphrase-Based Semantic Search and LLM Ranking
 jupyter:
   jupytext:
@@ -48,53 +48,79 @@ This approach combines ideas from conversational recommendation, multi-vector re
 
 ```{python}
 #| label: imports
-# Standard library imports
+
 import itertools
 import json
 import os
 from collections import Counter, defaultdict
 
-# Third-party imports
 import numpy as np
 import polars as pl
 from IPython.display import Markdown, display
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Local application imports
-from recsys_genai import (
+from recsys_genai.data_utils import load_movielens
+from recsys_genai.llm_utils import (
     check_ollama_available,
-    load_movielens,
     ollama_embed,
     ollama_generate,
     ollama_generate_json,
+    retry,
 )
-from recsys_genai.llm_utils import retry
-from recsys_genai.notebook_utils import ollama_model_link, show_prompt, show_response, tmdb_images
+from recsys_genai.notebook_utils import (
+    ollama_model_link,
+    show_prompt,
+    show_response,
+    tmdb_images,
+)
 ```
 
 ```{python}
 #| label: setup
 
-# Configuration: LLM models
-LLM_MODEL = os.getenv("LLM_MODEL", "ministral-3:3b")
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v2-moe")
+class ConversationalRecSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix='CONV_REC_')
 
+    # Model selection
+    llm_model: str = Field(default="ministral-3:3b", description="LLM model for generation")
+    embed_model: str = Field(default="nomic-embed-text-v2-moe", description="Embedding model")
+
+    # Recommendations configuration
+    num_most_popular: int = Field(default=500, description="Top N most-rated movies to sample from")
+    num_sampled: int = Field(default=100, description="Number of movies to sample for keyphrase generation")
+    num_retrieved: int = Field(default=10, description="Number of final movies to retrieve and rank")
+
+
+# Load settings
+settings = ConversationalRecSettings()
+
+# Load data
 movies, ratings, tags, links = load_movielens("../data")
 posters = pl.read_parquet("../data/shared/posters.parquet")
 
+# Configure Polars display
 pl.Config(
     fmt_str_lengths=50,
     tbl_rows=20,
 )
 
-Markdown(
-f"""\
-**Selected models:**
+# Display configuration
+display(Markdown(f"""
+**Configuration:**
 
-- Generative: {ollama_model_link(LLM_MODEL)}
-- Embedding: {ollama_model_link(EMBED_MODEL)}
-"""
-)
+**Models:**
+
+- Generative: {ollama_model_link(settings.llm_model)}
+- Embedding: {ollama_model_link(settings.embed_model)}
+
+**Sampling:**
+
+- Most popular movies considered: {settings.num_most_popular}
+- Movies sampled for keyphrases: {settings.num_sampled}
+- Final retrieved movies: {settings.num_retrieved}
+"""))
 ```
 
 # Prepare Movie Sample
@@ -109,13 +135,13 @@ most_rated_movies = (
     ratings
     .group_by("movie_id")
     .len("num_ratings")
-    .top_k(500, by="num_ratings")
+    .top_k(settings.num_most_popular, by="num_ratings")
 )
 
 sample_movies = (
     movies
     .join(most_rated_movies, on="movie_id", how="semi")
-    .sample(n=100, seed=42)
+    .sample(n=settings.num_sampled, seed=42)
 )
 
 display(Markdown(f"**Selected {len(sample_movies)} movies** for keyphrase generation"))
@@ -139,7 +165,7 @@ def generate_movie_keyphrases(title, genres):
         dict with 'keyphrases' key containing list of strings
     """
     prompt = f"""\
-You are a film expert. Generate 20-30 short keyphrases (1-4 words each) that describe this movie.
+You are a film expert. Generate 10-15 short keyphrases (2-4 words each) that describe this movie.
 
 Title: {title}
 Genres: {', '.join(genres) if genres else 'Unknown'}
@@ -158,10 +184,10 @@ Output ONLY valid JSON:
   "keyphrases": ["phrase1", "phrase2", ..., "phrase8"]
 }}
 """
-    result = ollama_generate_json(prompt, model=LLM_MODEL, temperature=0.5)
+    result = ollama_generate_json(prompt, model=settings.llm_model, temperature=0.5)
     if "keyphrases" not in result or not isinstance(result["keyphrases"], list):
         raise ValueError("Invalid keyphrase format")
-    if len(result["keyphrases"]) < 15:
+    if len(result["keyphrases"]) < 8:
         raise ValueError(f"Not enough keyphrases: {len(result['keyphrases'])}")
     return result
 
@@ -252,7 +278,7 @@ keyphrase_embeddings = []
 for i, batch in enumerate(itertools.batched(all_keyphrase_texts, batch_size)):
     if i % 10 == 0:
         print(f"  Batch {i+1}/{len(all_keyphrase_texts)//batch_size + 1}")
-    batch_embeddings = ollama_embed(list(batch), model=EMBED_MODEL)
+    batch_embeddings = ollama_embed(list(batch), model=settings.embed_model)
     keyphrase_embeddings.extend(batch_embeddings)
 
 keyphrase_matrix = np.array(keyphrase_embeddings)
@@ -279,7 +305,7 @@ def generate_query_keyphrases(query):
     """
     prompt = f"""\
 You are a movie recommendation expert. A user describes what they want to watch.
-Generate 8-12 short keyphrases (1-4 words each) that describe the type of movie they're looking for.
+Generate 3-5 short keyphrases (1-4 words each) that describe the type of movie they're looking for.
 
 User Query: "{query}"
 
@@ -291,10 +317,10 @@ Output ONLY valid JSON:
   "keyphrases": ["phrase1", "phrase2", ..., "phrase7"]
 }}
 """
-    result = ollama_generate_json(prompt, model=LLM_MODEL, temperature=0.5)
+    result = ollama_generate_json(prompt, model=settings.llm_model, temperature=0.5)
     if "keyphrases" not in result or not isinstance(result["keyphrases"], list):
         raise ValueError("Invalid keyphrase format")
-    if len(result["keyphrases"]) < 5:
+    if len(result["keyphrases"]) < 2:
         raise ValueError(f"Not enough keyphrases: {len(result['keyphrases'])}")
     return result
 
@@ -321,7 +347,7 @@ Now embed the query keyphrases to enable similarity comparison:
 ```{python}
 #| label: embed-query-keyphrases
 
-query_embeddings = ollama_embed(query_phrases, model=EMBED_MODEL)
+query_embeddings = ollama_embed(query_phrases, model=settings.embed_model)
 query_matrix = np.array(query_embeddings)
 
 print(f"Query embedding matrix shape: {query_matrix.shape}")
@@ -376,8 +402,6 @@ Group matches by movie and find the best matching keyphrases for each. The **mat
 ```{python}
 #| label: aggregate-top-movies
 
-top_k_movies = 10
-
 # For each movie, get the best matching keyphrases
 movie_best_matches = (
     matches_df
@@ -391,7 +415,7 @@ movie_best_matches = (
         pl.col('movie_phrase').head(3).alias('matching_keyphrases')
     ])
     .sort('max_similarity', descending=True)
-    .head(top_k_movies)
+    .head(settings.num_retrieved)
 )
 
 # Join with movie titles
@@ -457,7 +481,7 @@ Output ONLY valid JSON in this format:
 }}
 """
 
-    result = ollama_generate_json(prompt, model=LLM_MODEL, temperature=0.3)
+    result = ollama_generate_json(prompt, model=settings.llm_model, temperature=0.3)
     if "recommendations" not in result or not isinstance(result["recommendations"], list):
         raise ValueError("Invalid ranking format")
 

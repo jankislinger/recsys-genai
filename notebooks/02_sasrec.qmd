@@ -1,5 +1,5 @@
 ---
-title: "Part III: Self-Attentive Sequential Recommendation"
+title: "Part II: Self-Attentive Sequential Recommendation"
 subtitle: "Transformers for Next-Item Prediction"
 jupyter: python3
 ---
@@ -20,29 +20,17 @@ This notebook implements **SASRec** (Self-Attentive Sequential Recommendation), 
 4. Evaluation and visualization
 
 ```{python}
+#| label: imports
+
 import numpy as np
 import polars as pl
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from recsys_genai import (
-    load_movielens,
-    get_user_sequences,
-    SequenceDataset,
-    SASRec,
-    train_sasrec,
-    recall_at_k,
-    ndcg_at_k
-)
-
-# Set random seeds
-torch.manual_seed(42)
-np.random.seed(42)
-
-# Device
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
+from recsys_genai.data_utils import SequenceDataset, get_user_sequences, load_movielens
+from recsys_genai.metrics import ndcg_at_k, recall_at_k
+from recsys_genai.sasrec import SASRec, train_sasrec
 ```
 
 # 1. Prepare Sequential Data
@@ -50,7 +38,15 @@ print(f"Using device: {device}")
 ## Load and Filter Data
 
 ```{python}
+#| label: setup
+
 movies, ratings, tags, links = load_movielens("../data")
+
+torch.manual_seed(42)
+np.random.seed(42)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
 
 # Filter to users with enough ratings
 user_counts = ratings.group_by("user_id").agg(pl.len().alias("count"))
@@ -70,6 +66,8 @@ print(f"Positive interactions: {len(filtered_ratings):,}")
 ## Extract User Sequences
 
 ```{python}
+#| label: extract-user-sequences
+
 # Get sequences ordered by timestamp
 sequences = get_user_sequences(
     filtered_ratings,
@@ -85,6 +83,8 @@ print(sequences[list(sequences.keys())[0]][:10])
 ## Create Item Vocabulary
 
 ```{python}
+#| label: create-item-vocabulary
+
 # Map movie IDs to indices (0 is reserved for padding)
 all_items = set()
 for seq in sequences.values():
@@ -106,6 +106,8 @@ indexed_sequences = {
 ## Train/Test Split
 
 ```{python}
+#| label: train-test-split
+
 # Split sequences into train/test
 # Test: last item of each sequence
 # Train: all but last item
@@ -116,7 +118,7 @@ test_ground_truth = {}
 for uid, seq in indexed_sequences.items():
     if len(seq) < 2:
         continue
-    
+
     train_sequences[uid] = seq[:-1]  # All but last
     test_ground_truth[uid] = {seq[-1]}  # Last item
 
@@ -127,6 +129,8 @@ print(f"Test sequences: {len(test_ground_truth)}")
 ## Create DataLoader
 
 ```{python}
+#| label: create-dataloader
+
 max_len = 50
 train_dataset = SequenceDataset(train_sequences, max_len=max_len)
 train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=0)
@@ -144,6 +148,8 @@ print(f"Batch target shape: {sample_batch[1].shape}")
 ## Model Architecture
 
 ```{python}
+#| label: build-sasrec-model
+
 num_items = len(item_to_idx)
 
 model = SASRec(
@@ -168,6 +174,8 @@ $$
 $$
 
 ```{python}
+#| label: train-sasrec
+
 # Train model
 losses = train_sasrec(
     model=model,
@@ -181,6 +189,8 @@ losses = train_sasrec(
 ## Plot Training Loss
 
 ```{python}
+#| label: plot-training-loss
+
 import matplotlib.pyplot as plt
 
 plt.figure(figsize=(8, 5))
@@ -200,33 +210,35 @@ plt.show()
 Let's see what SASRec recommends for our favorite user!
 
 ```{python}
+#| label: predict-for-alice
+
 # Find Alice (user 1)
 alice_id = 1
 
 if alice_id in train_sequences:
     alice_seq = train_sequences[alice_id]
-    
+
     # Pad/truncate to max_len
     if len(alice_seq) > max_len:
         alice_seq = alice_seq[-max_len:]
     else:
         alice_seq = [0] * (max_len - len(alice_seq)) + alice_seq
-    
+
     # Convert to tensor
     seq_tensor = torch.tensor([alice_seq], dtype=torch.long).to(device)
-    
+
     # Predict
     top_items, top_scores = model.predict_next(seq_tensor, k=10)
-    
+
     # Map back to movie IDs
     recommendations = [idx_to_item[idx.item()] for idx in top_items[0]]
-    
+
     # Display
     print("Alice's Recent History:")
     recent_items = [idx_to_item[idx] for idx in alice_seq[-5:] if idx > 0]
     recent_movies = movies.filter(pl.col("movie_id").is_in(recent_items))
     print(recent_movies.select(["title", "genres"]))
-    
+
     print("\nSASRec Recommendations for Alice:")
     rec_movies = movies.filter(pl.col("movie_id").is_in(recommendations))
     print(rec_movies.select(["title", "genres"]))
@@ -239,6 +251,8 @@ else:
 Evaluate on test set using Recall@K and NDCG@K.
 
 ```{python}
+#| label: evaluate-model
+
 model.eval()
 
 predictions = {}
@@ -299,6 +313,8 @@ Let's visualize what the model learned!
 ## Extract Attention Weights
 
 ```{python}
+#| label: extract-attention-weights
+
 # Modify forward pass to return attention weights
 def forward_with_attention(model, seq):
     """Forward pass that captures attention weights."""
@@ -381,6 +397,8 @@ if alice_id in train_sequences:
 How does sequence length affect performance?
 
 ```{python}
+#| label: sequence-length-experiment
+
 # Try different sequence lengths
 seq_lengths = [10, 20, 30, 50]
 results = []
@@ -457,7 +475,7 @@ plt.show()
 4. **Sequence length** is a key hyperparameter (trade-off: context vs. computation)
 
 **Next Steps:**
-- Part IV: LLMs for recommendation (zero-shot, metadata generation)
+- Part III: LLMs for recommendation (zero-shot, metadata generation)
 - Advanced notebook: Bert4Rec (bidirectional masking)
 
 **Connection to LLMs**:

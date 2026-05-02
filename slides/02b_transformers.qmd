@@ -1,5 +1,5 @@
 ---
-title: "Part III: Sequence Models and Transformers"
+title: "Part II.b: Sequence Models and Transformers"
 subtitle: "From Static Embeddings to Sequential Attention"
 format:
   revealjs:

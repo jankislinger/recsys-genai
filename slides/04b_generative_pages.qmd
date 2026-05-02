@@ -1,5 +1,5 @@
 ---
-title: "Part VI: Generating Recommendation Pages"
+title: "Part IV.b: Generating Recommendation Pages"
 subtitle: "From Item Ranking to Experience Generation"
 format:
   revealjs:

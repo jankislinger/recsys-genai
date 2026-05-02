@@ -1,0 +1,737 @@
+---
+title: 'Part IV.a: Slate Generation with REINFORCE'
+subtitle: Encoder-Decoder Transformer for Diversity-Aware Recommendations
+jupyter: python3
+---
+
+# Introduction
+
+In this notebook, we'll build a **slate generation** model using an encoder-decoder transformer trained with REINFORCE [@bello2018seq2slate].
+
+**Key Concepts:**
+
+1. **Problem**: Generate diverse slates of 5 items similar to a seed item
+2. **Objective**: Maximize relevance to seed while encouraging diversity
+3. **Method**: Encoder-decoder transformer with policy gradient training
+
+**Reward Function:**
+
+$$
+R(S \mid \text{seed}) = \frac{1}{|S|} \sum_{i \in S} \text{sim}(i, \text{seed}) - \lambda \cdot \frac{1}{|S|(|S|-1)} \sum_{i,j \in S, i \neq j} \text{sim}(i, j)
+$$
+
+Where:
+- First term: average similarity to seed (relevance)
+- Second term: average pairwise similarity (diversity penalty)
+- $\lambda$: diversity weight (e.g., 0.5)
+
+**Prerequisites:** Run `01b_foundations.qmd` to generate item embeddings from Matrix Factorization!
+
+```{python}
+#| label: imports
+
+from pathlib import Path
+
+import numpy as np
+import polars as pl
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from IPython.display import Markdown, display
+from plotnine import *
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from recsys_genai.data_utils import load_movielens
+from recsys_genai.notebook_utils import tmdb_images
+```
+
+```{python}
+#| label: setup
+
+theme_set(theme_minimal() + theme(
+    plot_title=element_text(weight='bold', size=14),
+    axis_title=element_text(size=12),
+    figure_size=(8, 6),
+))
+
+# Set random seeds
+np.random.seed(42)
+torch.manual_seed(42)
+
+# Device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+```
+
+# Load Data and Embeddings
+
+We'll load the MovieLens data and pre-trained item embeddings from the Matrix Factorization model (Part I.b).
+
+```{python}
+#| label: load-data
+
+# Load MovieLens data
+movies, ratings, tags, links = load_movielens("../data")
+posters = pl.read_parquet("../data/shared/posters.parquet")
+
+print(f"Movies: {len(movies):,}")
+print(f"Ratings: {len(ratings):,}")
+```
+
+```{python}
+#| label: load-embeddings
+
+# Load pre-trained embeddings from Part I.b
+embeddings_dir = Path("data/embeddings")
+
+# Check if embeddings exist
+embeddings_file = embeddings_dir / "mf_item_embeddings_64d.npy"
+mappings_file = embeddings_dir / "mappings.npz"
+
+if not embeddings_file.exists() or not mappings_file.exists():
+    raise FileNotFoundError(
+        f"Embeddings not found. Please run notebook 01b_foundations.qmd first!\n"
+        f"Expected files:\n"
+        f"  - {embeddings_file}\n"
+        f"  - {mappings_file}"
+    )
+
+# Load 64-dimensional embeddings (trained specifically for slate generation)
+item_embeddings_np = np.load(embeddings_file)
+
+# Load mappings from numpy archive
+mappings = np.load(mappings_file)
+item_ids = mappings['item_ids']
+item_indices = mappings['item_indices']
+
+# Reconstruct item_to_idx dictionary
+item_to_idx = dict(zip(item_ids, item_indices))
+
+# Convert to PyTorch tensor
+item_embeddings = torch.FloatTensor(item_embeddings_np).to(device)
+
+print(f"Loaded item embeddings:")
+print(f"  Shape: {item_embeddings.shape}")
+print(f"  Embedding dimension: {item_embeddings.shape[1]}")
+print(f"  Number of items: {len(item_to_idx):,}")
+print(f"\nThese are higher-dimensional embeddings (64d) trained in Part I.b")
+print(f"for better slate generation performance.")
+```
+
+# Slate Generation Model
+
+Now we'll implement an encoder-decoder transformer for slate generation.
+
+```{python}
+#| label: model-architecture
+
+class SlateGeneratorTransformer(nn.Module):
+    """Encoder-Decoder Transformer for Slate Generation.
+    
+    Encoder: Process candidate items
+    Decoder: Autoregressively generate slate positions
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int,
+        num_heads: int = 4,
+        num_encoder_layers: int = 2,
+        num_decoder_layers: int = 2,
+        dim_feedforward: int = 256,
+        dropout: float = 0.1,
+        max_slate_size: int = 5,
+    ):
+        super().__init__()
+        
+        self.embedding_dim = embedding_dim
+        self.max_slate_size = max_slate_size
+        
+        # Positional encoding for decoder
+        self.pos_embedding = nn.Embedding(max_slate_size, embedding_dim)
+        
+        # Transformer layers
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embedding_dim,
+            nhead=num_heads,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
+
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=embedding_dim,
+            nhead=num_heads,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
+
+        # Output projection to candidate scores
+        self.output_proj = nn.Linear(embedding_dim, 1)
+
+    def forward(self, candidate_embs, slate_embs=None, slate_mask=None):
+        """
+        Args:
+            candidate_embs: [batch_size, num_candidates, embedding_dim]
+            slate_embs: [batch_size, slate_size, embedding_dim] - partially generated slate
+            slate_mask: [batch_size, slate_size] - mask for autoregressive generation
+
+        Returns:
+            logits: [batch_size, slate_size, num_candidates] - scores for each position
+        """
+        batch_size = candidate_embs.shape[0]
+        num_candidates = candidate_embs.shape[1]
+
+        # Encode candidates
+        encoded = self.encoder(candidate_embs)  # [batch, num_cand, dim]
+
+        if slate_embs is None:
+            # Initialize with zero embeddings for first position
+            slate_size = 1
+            slate_embs = torch.zeros(batch_size, slate_size, self.embedding_dim, device=candidate_embs.device)
+        else:
+            slate_size = slate_embs.shape[1]
+
+        # Add positional encoding to slate
+        positions = torch.arange(slate_size, device=candidate_embs.device)
+        slate_embs = slate_embs + self.pos_embedding(positions).unsqueeze(0)
+
+        # Decode
+        decoded = self.decoder(
+            tgt=slate_embs,
+            memory=encoded,
+            tgt_mask=slate_mask
+        )  # [batch, slate_size, dim]
+
+        # Project to candidate space
+        # We'll compute attention scores to candidates
+        scores = torch.bmm(decoded, encoded.transpose(1, 2))  # [batch, slate_size, num_cand]
+
+        return scores
+
+    def generate_slate(self, candidate_embs, candidate_indices, slate_size=5, temperature=1.0):
+        """Generate a slate autoregressively.
+
+        Args:
+            candidate_embs: [batch_size, num_candidates, embedding_dim]
+            candidate_indices: [batch_size, num_candidates] - indices of candidates
+            slate_size: number of items to generate
+            temperature: sampling temperature
+
+        Returns:
+            selected_indices: [batch_size, slate_size] - indices into candidates
+            log_probs: [batch_size, slate_size] - log probabilities of selections
+        """
+        batch_size = candidate_embs.shape[0]
+        num_candidates = candidate_embs.shape[1]
+
+        selected_indices = []
+        log_probs = []
+
+        slate_embs_list = []
+
+        for t in range(slate_size):
+            if t == 0:
+                slate_embs = None
+            else:
+                slate_embs = torch.stack(slate_embs_list, dim=1)  # [batch, t, dim]
+
+            # Get scores for next position
+            scores = self.forward(candidate_embs, slate_embs)  # [batch, *, num_cand]
+            logits = scores[:, -1, :]  # [batch, num_cand] - scores for position t
+
+            # Mask already selected items
+            if t > 0:
+                mask = torch.zeros_like(logits)
+                for i, idx_list in enumerate(zip(*selected_indices)):
+                    mask[i, list(idx_list)] = -1e9
+                logits = logits + mask
+
+            # Sample from categorical distribution
+            probs = F.softmax(logits / temperature, dim=-1)
+            dist = torch.distributions.Categorical(probs)
+            selected = dist.sample()  # [batch]
+
+            selected_indices.append(selected)
+            log_probs.append(dist.log_prob(selected))
+
+            # Get embeddings of selected items for next step
+            selected_embs = candidate_embs[torch.arange(batch_size), selected]  # [batch, dim]
+            slate_embs_list.append(selected_embs)
+
+        selected_indices = torch.stack(selected_indices, dim=1)  # [batch, slate_size]
+        log_probs = torch.stack(log_probs, dim=1)  # [batch, slate_size]
+
+        return selected_indices, log_probs
+
+
+# Initialize model
+model = SlateGeneratorTransformer(
+    embedding_dim=item_embeddings.shape[1],
+    num_heads=4,
+    num_encoder_layers=2,
+    num_decoder_layers=2,
+    dim_feedforward=256,
+    dropout=0.1,
+    max_slate_size=5
+).to(device)
+
+print(model)
+print(f"\nTotal parameters: {sum(p.numel() for p in model.parameters()):,}")
+```
+
+# Reward Function
+
+The reward balances relevance to the seed item and diversity within the slate.
+
+```{python}
+#| label: reward-function
+
+def compute_reward(slate_embs, seed_emb, lambda_diversity=0.5):
+    """Compute reward for a slate given a seed item.
+
+    Args:
+        slate_embs: [batch_size, slate_size, embedding_dim]
+        seed_emb: [batch_size, embedding_dim]
+        lambda_diversity: weight for diversity penalty
+
+    Returns:
+        rewards: [batch_size] - scalar reward for each slate
+    """
+    batch_size, slate_size, dim = slate_embs.shape
+
+    # Normalize embeddings
+    slate_embs_norm = F.normalize(slate_embs, dim=-1)
+    seed_emb_norm = F.normalize(seed_emb.unsqueeze(1), dim=-1)
+
+    # Relevance: average cosine similarity to seed
+    relevance = torch.bmm(slate_embs_norm, seed_emb_norm.transpose(1, 2)).squeeze(-1)  # [batch, slate_size]
+    avg_relevance = relevance.mean(dim=1)  # [batch]
+
+    # Diversity: average pairwise similarity (lower is more diverse)
+    # Compute pairwise similarities
+    pairwise_sim = torch.bmm(slate_embs_norm, slate_embs_norm.transpose(1, 2))  # [batch, slate, slate]
+
+    # Mask diagonal (self-similarity)
+    mask = torch.eye(slate_size, device=pairwise_sim.device).unsqueeze(0)
+    pairwise_sim = pairwise_sim * (1 - mask)
+
+    # Average pairwise similarity (excluding diagonal)
+    avg_diversity = pairwise_sim.sum(dim=(1, 2)) / (slate_size * (slate_size - 1))  # [batch]
+
+    # Combined reward
+    reward = avg_relevance - lambda_diversity * avg_diversity
+
+    return reward
+
+
+# Test reward function
+test_slate = item_embeddings[:5].unsqueeze(0)  # [1, 5, dim]
+test_seed = item_embeddings[0].unsqueeze(0)  # [1, dim]
+
+# Use default lambda_diversity for testing
+test_reward = compute_reward(test_slate, test_seed, lambda_diversity=0.5)
+print(f"Test reward (λ=0.5): {test_reward.item():.4f}")
+```
+
+# Training with REINFORCE
+
+We'll use policy gradient (REINFORCE) to train the model to maximize the expected reward.
+
+```{python}
+#| label: training-setup
+
+class TrainingSettings(BaseSettings):
+    """Configuration for slate generation training.
+
+    Can be overridden with environment variables using SLATE_GEN_ prefix.
+    Example: SLATE_GEN_NUM_EPOCHS=200
+    """
+    model_config = SettingsConfigDict(env_prefix='SLATE_GEN_')
+
+    slate_size: int = Field(default=5, description="Number of items in generated slate")
+    num_candidates: int = Field(default=100, description="Number of candidate items per seed")
+    batch_size: int = Field(default=32, description="Training batch size")
+    num_epochs: int = Field(default=100, description="Number of training epochs")
+    learning_rate: float = Field(default=1e-4, description="Adam optimizer learning rate")
+    lambda_diversity: float = Field(default=0.5, description="Diversity penalty weight")
+    temperature: float = Field(default=1.0, description="Sampling temperature")
+    num_train_seeds: int = Field(default=1000, description="Number of random seed items for training")
+    gradient_clip_norm: float = Field(default=1.0, description="Gradient clipping norm")
+
+
+# Load settings (can be overridden by environment variables)
+settings = TrainingSettings()
+
+# Set random seeds
+np.random.seed(42)
+torch.manual_seed(42)
+
+# Initialize optimizer
+optimizer = torch.optim.Adam(model.parameters(), lr=settings.learning_rate)
+
+# Prepare training data: sample random seeds
+num_items = len(item_to_idx)
+seed_indices = np.random.choice(num_items, size=settings.num_train_seeds, replace=True)
+
+# Display training configuration
+config_lines = []
+for field_name, field_info in TrainingSettings.model_fields.items():
+    value = getattr(settings, field_name)
+    desc = field_info.description
+    config_lines.append(f"- {desc}: {value}")
+
+display(Markdown(f"""
+**Training Configuration:**
+
+{chr(10).join(config_lines)}
+"""))
+```
+
+```{python}
+#| label: train-model
+
+def get_candidate_set(seed_idx, item_embeddings, num_candidates=100):
+    """Get candidate items for a seed (top-k by cosine similarity)."""
+    seed_emb = item_embeddings[seed_idx]
+
+    # Compute similarities
+    similarities = F.cosine_similarity(
+        item_embeddings,
+        seed_emb.unsqueeze(0),
+        dim=1
+    )
+
+    # Get top-k (excluding seed itself)
+    top_k = torch.topk(similarities, k=num_candidates + 1, largest=True)
+    candidate_indices = top_k.indices[top_k.indices != seed_idx][:num_candidates]
+
+    return candidate_indices
+
+
+# Training loop
+model.train()
+rewards_history = []
+loss_history = []
+
+for epoch in range(settings.num_epochs):
+    epoch_rewards = []
+    epoch_losses = []
+
+    # Sample batches
+    np.random.shuffle(seed_indices)
+
+    for i in range(0, len(seed_indices), settings.batch_size):
+        batch_seeds = seed_indices[i:i + settings.batch_size]
+        if len(batch_seeds) < settings.batch_size:
+            continue
+
+        # Prepare batch
+        batch_candidates = []
+        batch_candidate_embs = []
+        batch_seed_embs = []
+
+        for seed_idx in batch_seeds:
+            # Get candidates
+            cand_indices = get_candidate_set(seed_idx, item_embeddings, settings.num_candidates)
+            batch_candidates.append(cand_indices)
+            batch_candidate_embs.append(item_embeddings[cand_indices])
+            batch_seed_embs.append(item_embeddings[seed_idx])
+
+        candidate_embs = torch.stack(batch_candidate_embs)  # [batch, num_cand, dim]
+        seed_embs = torch.stack(batch_seed_embs)  # [batch, dim]
+
+        # Generate slates
+        selected_indices, log_probs = model.generate_slate(
+            candidate_embs,
+            batch_candidates,
+            slate_size=settings.slate_size,
+            temperature=settings.temperature
+        )
+
+        # Get embeddings of selected items
+        batch_idx = torch.arange(settings.batch_size, device=device).unsqueeze(1).expand(-1, settings.slate_size)
+        slate_embs = candidate_embs[batch_idx, selected_indices]  # [batch, slate_size, dim]
+
+        # Compute rewards
+        rewards = compute_reward(slate_embs, seed_embs, lambda_diversity=settings.lambda_diversity)
+
+        # REINFORCE loss: -log_prob * (reward - baseline)
+        baseline = rewards.mean()
+        advantages = rewards - baseline
+        loss = -(log_probs.sum(dim=1) * advantages).mean()
+
+        # Optimize
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), settings.gradient_clip_norm)
+        optimizer.step()
+
+        epoch_rewards.append(rewards.mean().item())
+        epoch_losses.append(loss.item())
+
+    avg_reward = np.mean(epoch_rewards)
+    avg_loss = np.mean(epoch_losses)
+    rewards_history.append(avg_reward)
+    loss_history.append(avg_loss)
+
+    if (epoch + 1) % 10 == 0:
+        print(f"Epoch {epoch + 1}/{settings.num_epochs} - Avg Reward: {avg_reward:.4f}, Loss: {avg_loss:.4f}")
+
+print("\nTraining complete!")
+```
+
+# Training Progress
+
+Let's visualize how the model improved during training.
+
+```{python}
+#| label: plot-rewards
+
+# Prepare data for plotting
+training_data = pl.DataFrame({
+    'epoch': list(range(1, len(rewards_history) + 1)),
+    'reward': rewards_history,
+    'loss': loss_history
+})
+
+(
+    ggplot(training_data, aes(x='epoch', y='reward'))
+    + geom_line(color='#2E86AB', size=1.5)
+    + geom_point(color='#2E86AB', size=2)
+    + labs(
+        title='Average Reward During Training',
+        x='Epoch',
+        y='Average Reward'
+    )
+)
+```
+
+```{python}
+#| label: plot-loss
+
+(
+    ggplot(training_data, aes(x='epoch', y='loss'))
+    + geom_line(color='#A23B72', size=1.5)
+    + geom_point(color='#A23B72', size=2)
+    + labs(
+        title='REINFORCE Loss During Training',
+        x='Epoch',
+        y='Loss'
+    )
+)
+```
+
+# Generate Slates for Example Movies
+
+Let's test the model on some example movies and compare with a greedy baseline.
+
+```{python}
+#| label: helper-functions
+
+model.eval()
+
+idx_to_item = {i: mid for mid, i in item_to_idx.items()}
+
+def generate_slate_for_movie(movie_id, model, item_embeddings, movies_df, num_candidates=100, slate_size=5):
+    """Generate a slate for a seed movie using the REINFORCE model."""
+    if movie_id not in item_to_idx:
+        return None
+
+    seed_idx = item_to_idx[movie_id]
+    seed_emb = item_embeddings[seed_idx].unsqueeze(0).to(device)
+
+    # Get candidates
+    cand_indices = get_candidate_set(seed_idx, item_embeddings, num_candidates)
+    cand_embs = item_embeddings[cand_indices].unsqueeze(0)  # [1, num_cand, dim]
+
+    # Generate slate
+    with torch.no_grad():
+        selected_indices, log_probs = model.generate_slate(
+            cand_embs,
+            [cand_indices],
+            slate_size=slate_size,
+            temperature=0.5  # Lower temperature for more deterministic selection
+        )
+
+    # Get selected movie IDs
+    selected = cand_indices[selected_indices[0]].cpu().numpy()
+    selected_movie_ids = [idx_to_item[int(idx)] for idx in selected]
+
+    # Compute reward
+    slate_embs = item_embeddings[selected].unsqueeze(0)
+    reward = compute_reward(slate_embs, seed_emb, lambda_diversity=settings.lambda_diversity)
+
+    return {
+        'selected_ids': selected_movie_ids,
+        'reward': reward.item(),
+        'log_probs': log_probs[0].cpu().numpy()
+    }
+
+
+def greedy_baseline(seed_idx, item_embeddings, slate_size=5):
+    """Greedy baseline: select top-k most similar items."""
+    seed_emb = item_embeddings[seed_idx]
+
+    # Compute similarities
+    similarities = F.cosine_similarity(
+        item_embeddings,
+        seed_emb.unsqueeze(0),
+        dim=1
+    )
+
+    # Get top-k (excluding seed)
+    top_k = torch.topk(similarities, k=slate_size + 1, largest=True)
+    selected = top_k.indices[top_k.indices != seed_idx][:slate_size]
+
+    return selected
+
+
+def compute_avg_similarity_to_seed(slate_embs, seed_emb):
+    """Compute average cosine similarity between slate items and seed."""
+    slate_embs_norm = F.normalize(slate_embs, dim=-1)
+    seed_emb_norm = F.normalize(seed_emb, dim=-1)
+    similarities = F.cosine_similarity(slate_embs_norm, seed_emb_norm.unsqueeze(0), dim=1)
+    return similarities.mean().item()
+```
+
+```{python}
+#| label: example-slates-comparison
+
+# Example seed movies
+EXAMPLE_MOVIE_IDS = [1, 260, 1196]  # Toy Story, Star Wars, Star Wars V
+
+for movie_id in EXAMPLE_MOVIE_IDS:
+    seed_info = movies.filter(pl.col('movie_id') == movie_id)
+    if len(seed_info) == 0 or movie_id not in item_to_idx:
+        continue
+
+    seed_idx = item_to_idx[movie_id]
+    seed_title = seed_info['title'][0]
+    seed_emb = item_embeddings[seed_idx].unsqueeze(0)
+
+    # Generate REINFORCE model slate
+    model_result = generate_slate_for_movie(movie_id, model, item_embeddings, movies)
+    if model_result is None:
+        continue
+
+    model_slate_idx = torch.tensor([item_to_idx[mid] for mid in model_result['selected_ids']])
+    model_slate_embs = item_embeddings[model_slate_idx].unsqueeze(0)
+    model_reward = compute_reward(model_slate_embs, seed_emb, settings.lambda_diversity).item()
+    model_avg_sim = compute_avg_similarity_to_seed(item_embeddings[model_slate_idx], item_embeddings[seed_idx])
+
+    # Generate greedy baseline slate
+    baseline_slate_idx = greedy_baseline(seed_idx, item_embeddings, slate_size=settings.slate_size)
+    baseline_slate_embs = item_embeddings[baseline_slate_idx].unsqueeze(0)
+    baseline_reward = compute_reward(baseline_slate_embs, seed_emb, settings.lambda_diversity).item()
+    baseline_avg_sim = compute_avg_similarity_to_seed(item_embeddings[baseline_slate_idx], item_embeddings[seed_idx])
+
+    # Display seed movie header
+    display(Markdown(f"### 🎬 Seed Movie: {seed_title}\n"))
+
+    # Get and display seed poster
+    seed_poster = posters.filter(pl.col('movie_id') == movie_id)
+    if len(seed_poster) > 0 and seed_poster['poster_path'][0]:
+        display(tmdb_images([seed_poster['poster_path'][0]]))
+
+    # Display metrics comparison
+    display(Markdown(f"""
+| Metric | REINFORCE Model | Greedy Baseline |
+|--------|---------------:|----------------:|
+| **Reward** | {model_reward:.4f} | {baseline_reward:.4f} |
+| **Avg Similarity to Seed** | {model_avg_sim:.4f} | {baseline_avg_sim:.4f} |
+| **Improvement** | - | {model_reward - baseline_reward:+.4f} |
+"""))
+
+    # Display REINFORCE model slate
+    display(Markdown("\n#### 🤖 REINFORCE Model Slate\n"))
+
+    # Collect posters for model slate
+    model_poster_paths = []
+    for mid in model_result['selected_ids']:
+        movie_poster = posters.filter(pl.col('movie_id') == mid)
+        if len(movie_poster) > 0 and movie_poster['poster_path'][0]:
+            model_poster_paths.append(movie_poster['poster_path'][0])
+
+    if model_poster_paths:
+        display(tmdb_images(model_poster_paths))
+
+    # Display greedy baseline slate
+    display(Markdown("\n#### 📊 Greedy Baseline Slate\n"))
+
+    # Collect posters for baseline slate
+    baseline_poster_paths = []
+    baseline_movie_ids = [idx_to_item[int(idx)] for idx in baseline_slate_idx.cpu().numpy()]
+
+    for mid in baseline_movie_ids:
+        movie_poster = posters.filter(pl.col('movie_id') == mid)
+        if len(movie_poster) > 0 and movie_poster['poster_path'][0]:
+            baseline_poster_paths.append(movie_poster['poster_path'][0])
+
+    if baseline_poster_paths:
+        display(tmdb_images(baseline_poster_paths))
+
+    display(Markdown("\n---\n"))
+```
+
+# Key Takeaways
+
+```{python}
+#| label: summary
+
+summary = f"""
+## Summary: Slate Generation with REINFORCE
+
+**Model Architecture:**
+- Encoder-Decoder Transformer
+- Autoregressive slate generation
+- {sum(p.numel() for p in model.parameters()):,} trainable parameters
+
+**Training Configuration:**
+- Policy Gradient (REINFORCE)
+- Epochs: {settings.num_epochs}
+- Batch size: {settings.batch_size}
+- Learning rate: {settings.learning_rate}
+- Slate size: {settings.slate_size}
+- Final average reward: {rewards_history[-1]:.4f}
+
+**Reward Function:**
+- Relevance to seed (avg cosine similarity)
+- Diversity penalty (λ = {settings.lambda_diversity})
+- Balances similarity and variety
+
+**Results:**
+- Model learns to generate diverse slates
+- Outperforms greedy baseline by considering diversity
+- Slates balance relevance and exploration
+
+**Key Insights:**
+1. Sequential generation allows modeling item interactions
+2. Policy gradients optimize for long-term slate quality
+3. Diversity constraint prevents redundant recommendations
+4. Temperature controls exploration vs exploitation
+
+**Configuration:**
+All hyperparameters can be overridden with environment variables using `SLATE_GEN_` prefix.
+Example: `SLATE_GEN_NUM_EPOCHS=200 SLATE_GEN_LAMBDA_DIVERSITY=0.3`
+"""
+
+display(Markdown(summary))
+```
+
+# Next Steps
+
+This notebook demonstrated slate generation with REINFORCE. Possible extensions:
+
+1. **User-specific slates**: Condition on user history/preferences
+2. **Position bias**: Model position-dependent rewards
+3. **Offline evaluation**: Evaluate on historical user interactions
+4. **Multi-objective**: Add coverage, fairness, business objectives
+5. **Larger scale**: Train on full catalog with efficient candidate sampling
+
+Continue to `04b_capstone_exercise.qmd` to design your own recommendation page!
+

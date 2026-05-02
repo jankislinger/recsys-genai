@@ -1,6 +1,6 @@
 ---
-title: "Capstone Exercise: Design a Generative Recommendation Page"
-subtitle: "Part V - Hands-On Design Challenge"
+title: "Part IV.b: Design a Generative Recommendation Page"
+subtitle: "Hands-On Design Challenge"
 jupyter: python3
 ---
 
@@ -19,8 +19,15 @@ You are designing a recommendation homepage for **Alice** on a Saturday evening.
 ## Given Information
 
 ```{python}
+#| label: imports
+
 import polars as pl
-from recsys_genai import load_movielens
+
+from recsys_genai.data_utils import load_movielens
+```
+
+```{python}
+#| label: setup
 
 movies, ratings, _, _ = load_movielens("../data")
 

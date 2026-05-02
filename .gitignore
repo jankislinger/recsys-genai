@@ -13,6 +13,12 @@ docs/
 /site_libs/
 **/*.quarto_ipynb
 
+# Ignore HTML and supporting files in notebooks/ and slides/
+notebooks/**/*.html
+notebooks/**/*_files/
+slides/**/*.html
+slides/**/*_files/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

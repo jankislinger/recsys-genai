@@ -1,5 +1,5 @@
 ---
-title: "From Matrix Factorization to Generative Recommendation Pages"
+title: "Recommender Systems in the Age of Generative AI"
 subtitle: "ML Prague 2026 Workshop"
 ---
 
@@ -17,81 +17,23 @@ This hands-on workshop takes you on a complete journey through modern recommenda
 
 **What you'll build:**
 
-- 📊 **Matrix Factorization** and **EASE** (classical collaborative filtering)
-- 🔄 **SASRec** - Transformer-based sequential recommendation
-- 🤖 **LLM-powered recommendations** (zero-shot, metadata generation)
-- 🎨 **Generative recommendation pages** (design exercise)
-
-## Workshop Arc
-
-```{mermaid}
-%%| fig-width: 10
-%%| fig-height: 4
-graph LR
-    A[Collaborative<br/>Filtering] --> B[Matrix<br/>Factorization]
-    B --> C[Sequential<br/>Transformers]
-    C --> D[LLM-Powered<br/>RecSys]
-    D --> E[Generative<br/>Pages]
-    
-    style A fill:#e8f4f8
-    style B fill:#d1e7f0
-    style C fill:#b9dae8
-    style D fill:#8ac0d8
-    style E fill:#72b3d0
-```
+- **Matrix Factorization** and **EASE** (classical collaborative filtering)
+- **SASRec** - Transformer-based sequential recommendation
+- **LLM-powered recommendations** (zero-shot, metadata generation)
+- **Conversational recommendation** (chat-based item discovery)
+- **Generative recommendation pages** (design exercise)
 
 ## Workshop Structure
 
-| Part | Topic | Duration | Format |
-|------|-------|----------|--------|
-| **I** | Introduction & Motivation | 20 min | Slides |
-| **II** | Foundations: MF & EASE | 35 min | Hands-on |
-| **III** | Transformers & SASRec | 45 min | Slides + Hands-on |
-| **IV** | LLMs for Recommendation | 35 min | Hands-on |
-| **V** | Generative Pages | 30 min | Slides + Exercise |
-| **VI** | Wrap-up & Resources | 15 min | Discussion |
-
-## Workshop Materials
-
-::: {.panel-tabset}
-
-## Slides
-
-**Part I: Introduction** (20 min)
-[View →](slides/01_introduction.qmd)
-Workshop overview, evolution of RecSys, GenAI taxonomy
-
-**Part III: Transformers** (15 min)
-[View →](slides/03_transformers.qmd)
-Sequential models, self-attention, why transformers for RecSys
-
-**Part V: Generative Pages** (15 min)
-[View →](slides/06_generative_pages.qmd)
-From item ranking to experience generation
-
-**Wrap-up** (15 min)
-[View →](slides/07_wrapup.qmd)
-Research roadmap, papers to read, next steps
-
-## Hands-On Notebooks
-
-**Part II: Foundations** (35 min) 🧑‍💻
-[Open →](notebooks/02_foundations.qmd)
-Matrix Factorization, EASE, classical collaborative filtering
-
-**Part III: SASRec** (30 min) 🧑‍💻
-[Open →](notebooks/04_sasrec.qmd)
-Build a transformer for next-item prediction
-
-**Part IV: LLMs for RecSys** (35 min) 🧑‍💻
-[Open →](notebooks/05_llm_recommendation.qmd)
-Zero-shot recommendation, metadata generation
-
-**Capstone Exercise** (10 min) ✏️
-[Open →](notebooks/07_capstone_exercise.qmd)
-Design a personalized recommendation page
-
-:::
+|         | Topic                     | Duration |
+|---------|---------------------------|----------|
+|         | Introduction & Motivation | 20 min   |
+| **I**   | Foundations: MF & EASE    | 30 min   |
+| **II**  | Transformers & SASRec     | 40 min   |
+|         | _Break_                   | 30 min   |
+| **III** | LLMs for Recommendation   | 50 min   |
+| **IV**  | Generative Pages          | 30 min   |
+|         | Wrap-up & Resources       | 10 min   |
 
 ## What You'll Learn
 
@@ -115,11 +57,22 @@ Harness large language models to recommend items without training data, solving 
 
 Move beyond ranked lists to design personalized homepages where the entire layout adapts per user. Learn slate optimization techniques, understand diversity and coverage constraints, and explore how modern platforms like Netflix and Spotify generate multi-carousel experiences. Design your own recommendation page from scratch.
 
+## Tech Stack
+
+- [Python](https://www.python.org/) - High-level programming language for data science and machine learning
+- [JupyterLab](https://jupyter.org/) - Interactive notebook environment for hands-on exercises
+- [Quarto](https://quarto.org/) - Publishing system for slides and workshop materials
+- [Polars](https://pola.rs/) - Lightning-fast DataFrame library for data manipulation
+- [PyTorch](https://pytorch.org/) - Deep learning framework for building neural recommendation models
+- [plotnine](https://plotnine.org/) - Grammar of graphics visualization (Python port of ggplot2)
+- [NumPy](https://numpy.org/) & [SciPy](https://scipy.org/) - Scientific computing and sparse matrix operations
+- [Ollama](https://ollama.com/) - Local LLM inference with CPU optimization
+
 ## Key Papers
 
 The workshop is grounded in influential research:
 
-### Classical
+### Classical Recommenders
 
 - @koren2009matrix: Matrix Factorization Techniques
 - @steck2019embarrassingly: EASE - Embarrassingly Shallow Autoencoders
@@ -130,7 +83,7 @@ The workshop is grounded in influential research:
 - @grover2016node2vec: Node2Vec - Scalable Feature Learning for Networks
 - @malkov2018hnsw: HNSW - Hierarchical Navigable Small World Graphs
 
-### Sequential
+### Sequential Models
 
 - @vaswani2017attention: Attention Is All You Need
 - @kang2018self: SASRec - Self-Attentive Sequential Recommendation
@@ -141,18 +94,30 @@ The workshop is grounded in influential research:
 - @geng2022recommendation: P5 - Recommendation as Language Processing
 - @hou2023large: LLMs are Zero-Shot Rankers
 
-## Dataset
-
-We'll use **MovieLens** [@harper2015movielens] - a real dataset of movie ratings:
-
-- 📊 33 million ratings from 280,000 users
-- 🎬 86,000 movies with titles and genres
-- ⭐ Ratings from 0.5 to 5.0 stars
-- 🏷️ User-generated tags
-
-Perfect for learning recommendation systems!
-
 ## During the Workshop
+
+### Prerequisites
+
+Before the workshop, please install:
+
+- **uv** - Fast Python package manager: [docs.astral.sh/uv](https://docs.astral.sh/uv/)
+- **Ollama** - Local LLM runtime: [ollama.com/download](https://ollama.com/download)
+
+### Setup
+
+Download the MovieLens dataset:
+
+```bash
+uv run recsys-genai download-data
+uv run recsys-genai prepare-data --dataset small
+```
+
+Pull the required language models:
+
+```bash
+ollama pull nomic-embed-text-v2-moe
+ollama pull ministral-3:3b
+```
 
 ### Running Notebooks
 
@@ -162,12 +127,8 @@ We'll use **JupyterLab** for hands-on coding:
 uv run jupyter lab
 ```
 
-This opens in your browser. Navigate to the `notebooks/` folder and open:
-
-- `02_foundations.qmd` (Part II)
-- `04_sasrec.qmd` (Part III)
-- `05_llm_recommendation.qmd` (Part IV)
-- `07_capstone_exercise.qmd` (Capstone)
+This opens directly in your browser.
+Navigate to the `notebooks/` folder and open any notebook (`*.qmd` files).
 
 ### Viewing Slides
 
@@ -189,15 +150,9 @@ All materials are available on GitHub:
 
 ### Stay in Touch
 
-- **GitHub**: [github.com/jankislinger/recsys-genai](https://github.com/jankislinger/recsys-genai)
-- **Questions?** Open an issue or discussion
+- [github.com/jankislinger](https://github.com/jankislinger)
+- [linkedin.com/in/jankislinger](https://www.linkedin.com/in/jankislinger/)
 
----
-
-::: {.callout-tip}
-## Let's Get Started!
-
-👉 Begin with [Part I: Introduction](slides/01_introduction.qmd) to understand the workshop arc.
-
-Then jump into [Part II: Foundations](notebooks/02_foundations.qmd) for hands-on coding!
+::: {layout-ncol=4}
+![](assets/qr_linkedin.png)
 :::

@@ -1,5 +1,5 @@
 ---
-title: "Transformer Architecture Deep Dive"
+title: "Part II.a: Transformer Architecture Deep Dive"
 subtitle: "Understanding the Foundation of Modern NLP"
 format:
   revealjs:

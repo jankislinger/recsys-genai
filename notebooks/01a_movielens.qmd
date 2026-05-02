@@ -1,5 +1,5 @@
 ---
-title: 'Part II.A: MovieLens Dataset Exploration'
+title: 'Part I.a: MovieLens Dataset Exploration'
 subtitle: Understanding User Behavior and Rating Patterns
 jupyter:
   jupytext:
@@ -29,23 +29,22 @@ Before building recommendation systems, we need to understand our data. This not
 - Understanding data characteristics helps us choose appropriate algorithms
 - User behavior patterns (cold start, engagement) motivate different recommendation approaches
 - Rating distributions affect how we interpret predictions
-- Temporal patterns are crucial for sequential models (Part III)
+- Temporal patterns are crucial for sequential models (Part II)
 
 ```{python}
 #| label: imports
 
-import numpy as np
-import polars as pl
 from pathlib import Path
 
-from plotnine import *
+import numpy as np
 import pandas as pd
-from IPython.display import display, Markdown
+import polars as pl
+from IPython.display import Markdown, display
+from plotnine import *
 from sklearn.decomposition import PCA
 
-from recsys_genai import load_movielens
+from recsys_genai.data_utils import load_movielens
 
-# Set default theme for all plots
 theme_set(theme_minimal() + theme(
     plot_title=element_text(weight='bold', size=14),
     axis_title=element_text(size=12),
@@ -56,7 +55,7 @@ theme_set(theme_minimal() + theme(
 # Load MovieLens Data
 
 ```{python}
-#| label: load-data
+#| label: setup
 
 movies, ratings, tags, links = load_movielens("../data")
 
@@ -620,7 +619,7 @@ display(user_velocity.sort("ratings_per_day", descending=True).head(10).select([
 ]))
 ```
 
-**Observation**: Rating velocity varies dramatically - some users binge-rate, others rate occasionally. This temporal pattern is crucial for sequential models (Part III).
+**Observation**: Rating velocity varies dramatically - some users binge-rate, others rate occasionally. This temporal pattern is crucial for sequential models (Part II).
 
 # Examples
 
@@ -745,7 +744,7 @@ We've explored the MovieLens dataset and uncovered several key insights:
 4. **Temporal Patterns**: Engagement varies widely - some users binge-rate, others rate slowly
 5. **Example Data**: We've defined example movies and Alice (User 1) for use throughout the workshop
 
-**In the next notebook (`02_foundations.qmd`)**, we'll build recommendation systems using:
+**In the next notebook (`01b_foundations.qmd`)**, we'll build recommendation systems using:
 
 - **Matrix Factorization**: Learn latent factors from user-item interactions
 - **EASE**: Simple yet powerful item-item collaborative filtering

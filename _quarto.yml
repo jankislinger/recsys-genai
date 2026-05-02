@@ -16,32 +16,40 @@ website:
         href: index.qmd
       - text: "Slides"
         menu:
-          - text: "Part I: Introduction"
-            href: slides/01_introduction.qmd
-          - text: "Part II: Transformer Architecture"
-            href: slides/02_transformer_architecture.qmd
-          - text: "Part III: Transformers"
-            href: slides/03_transformers.qmd
-          - text: "Part V: Reranking & Slate Optimization"
-            href: slides/06_reranking.qmd
-          - text: "Part VI: Generative Pages"
-            href: slides/06_generative_pages.qmd
+          - text: "Introduction"
+            href: slides/00_introduction.qmd
+          - text: "---"
+          - text: "II.a: Transformer Architecture"
+            href: slides/02a_transformer_architecture.qmd
+          - text: "II.b: Transformers & SASRec"
+            href: slides/02b_transformers.qmd
+          - text: "---"
+          - text: "IV.a: Reranking & Slate Optimization"
+            href: slides/04a_reranking.qmd
+          - text: "IV.b: Generative Pages"
+            href: slides/04b_generative_pages.qmd
+          - text: "---"
           - text: "Wrap-up"
             href: slides/07_wrapup.qmd
       - text: "Notebooks"
         menu:
-          - text: "Part II: MovieLens Dataset"
-            href: notebooks/02_movielens.qmd
-          - text: "Part II: Foundations"
-            href: notebooks/02_foundations.qmd
-          - text: "Part III: SASRec"
-            href: notebooks/04_sasrec.qmd
-          - text: "Part IV: LLMs for Recommendations"
-            href: notebooks/05_llm_recommendation.qmd
-          - text: "Part VI: Conversational Recommendation"
-            href: notebooks/06_conversational_recommendation.qmd
-          - text: "Capstone Exercise"
-            href: notebooks/07_capstone_exercise.qmd
+          - text: "I.a: MovieLens Dataset"
+            href: notebooks/01a_movielens.qmd
+          - text: "I.b: Foundations (MF & EASE)"
+            href: notebooks/01b_foundations.qmd
+          - text: "---"
+          - text: "II: SASRec"
+            href: notebooks/02_sasrec.qmd
+          - text: "---"
+          - text: "III.a: LLMs for Recommendation"
+            href: notebooks/03a_llm_recommendation.qmd
+          - text: "III.b: Conversational Recommendation"
+            href: notebooks/03b_conversational_recommendation.qmd
+          - text: "---"
+          - text: "IV.a: Slate Generation"
+            href: notebooks/04a_slate_generation.qmd
+          - text: "IV.b: Capstone Exercise"
+            href: notebooks/04b_capstone_exercise.qmd
       - text: "References"
         href: references.qmd
     right:

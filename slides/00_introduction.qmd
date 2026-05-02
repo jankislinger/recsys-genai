@@ -252,7 +252,7 @@ One user, five techniques — maximum coherence!
 
 ## Let's Build! {.center}
 
-**Next: Part II - Foundations Notebook**
+**Next: Part I - Foundations Notebook**
 
 Hands-on with MovieLens:
 - Dataset exploration

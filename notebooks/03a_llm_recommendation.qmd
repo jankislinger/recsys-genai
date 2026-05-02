@@ -1,5 +1,5 @@
 ---
-title: 'Part IV: LLMs for Recommendations'
+title: 'Part III.a: LLMs for Recommendation'
 subtitle: Zero-Shot Recommendation and Metadata Generation
 jupyter:
   jupytext:
@@ -33,32 +33,33 @@ This notebook explores how Large Language Models can enhance recommendation syst
 
 ```{python}
 #| label: imports
-# Standard library imports
+
 import itertools
 import json
 import os
 
-# Third-party imports
 import numpy as np
 import polars as pl
 from IPython.display import Markdown, display
 
-# Local application imports
-from recsys_genai import (
+from recsys_genai.data_utils import load_movielens
+from recsys_genai.llm_utils import (
     check_ollama_available,
-    load_movielens,
     ollama_embed,
     ollama_generate,
     ollama_generate_json,
+    retry,
 )
-from recsys_genai.llm_utils import retry
-from recsys_genai.notebook_utils import ollama_model_link, show_prompt, show_response
+from recsys_genai.notebook_utils import (
+    ollama_model_link,
+    show_prompt,
+    show_response,
+)
 ```
 
 ```{python}
 #| label: setup
 
-# Configuration: LLM models
 LLM_MODEL = os.getenv("LLM_MODEL", "ministral-3:3b")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v2-moe")
 
@@ -835,4 +836,4 @@ for movie in top_similar.to_dicts():
 - **P5**: Treats recommendation as sequence-to-sequence task [@geng2022recommendation]
 - **LLMRec**: Uses LLM as ranker for candidate items [@hou2023large]
 
-**Next**: Part VI - Conversational recommendation with keyphrases!
+**Next**: Part IV.a - Conversational Recommendation with Keyphrases!
