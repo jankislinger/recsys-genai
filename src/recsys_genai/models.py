@@ -3,10 +3,14 @@
 Implements Matrix Factorization, EASE, and SASRec architectures.
 """
 
+from itertools import batched
+
 import numpy as np
+import torch
+import torch.nn as nn
 
 
-class MatrixFactorization:
+class MatrixFactorization(nn.Module):
     """Matrix Factorization for collaborative filtering.
 
     Factorizes the user-item matrix into user and item latent factors.
@@ -35,25 +39,104 @@ class MatrixFactorization:
         learning_rate: float = 0.01,
         reg: float = 0.01,
     ):
+        super().__init__()
         self.num_users = num_users
         self.num_items = num_items
         self.num_factors = num_factors
         self.lr = learning_rate
         self.reg = reg
 
-        # Initialize factor matrices
-        self.user_factors = np.random.normal(0, 0.1, (num_users, num_factors))
-        self.item_factors = np.random.normal(0, 0.1, (num_items, num_factors))
-        self.user_bias = np.zeros(num_users)
-        self.item_bias = np.zeros(num_items)
-        self.global_bias = 0.0
+        # Initialize embeddings as nn.Embedding layers
+        self.user_embedding = nn.Embedding(num_users, num_factors)
+        self.item_embedding = nn.Embedding(num_items, num_factors)
+        self.user_bias_embedding = nn.Embedding(num_users, 1)
+        self.item_bias_embedding = nn.Embedding(num_items, 1)
+
+        # Initialize weights
+        nn.init.normal_(self.user_embedding.weight, mean=0.0, std=0.1)
+        nn.init.normal_(self.item_embedding.weight, mean=0.0, std=0.1)
+        nn.init.zeros_(self.user_bias_embedding.weight)
+        nn.init.zeros_(self.item_bias_embedding.weight)
+
+        # Global bias as a parameter
+        self._global_bias = nn.Parameter(torch.zeros(1))
+
+    @property
+    def global_bias(self) -> float:
+        """Get global bias as float."""
+        return self._global_bias.item()
+
+    @property
+    def user_factors(self) -> np.ndarray:
+        """Get user factors as numpy array.
+
+        Note: This is read-only. To modify, use:
+            model.user_embedding.weight.data[idx] = torch.tensor(...)
+        """
+        return self.user_embedding.weight.detach().cpu().numpy()
+
+    @property
+    def item_factors(self) -> np.ndarray:
+        """Get item factors as numpy array.
+
+        Note: This is read-only. To modify, use:
+            model.item_embedding.weight.data[idx] = torch.tensor(...)
+        """
+        return self.item_embedding.weight.detach().cpu().numpy()
+
+    @property
+    def user_bias(self) -> np.ndarray:
+        """Get user bias as numpy array.
+
+        Note: This is read-only. To modify, use:
+            model.user_bias_embedding.weight.data[idx, 0] = value
+        """
+        return self.user_bias_embedding.weight.detach().cpu().numpy().squeeze()
+
+    @property
+    def item_bias(self) -> np.ndarray:
+        """Get item bias as numpy array.
+
+        Note: This is read-only. To modify, use:
+            model.item_bias_embedding.weight.data[idx, 0] = value
+        """
+        return self.item_bias_embedding.weight.detach().cpu().numpy().squeeze()
 
     def predict(self, user_id: int, item_id: int) -> float:
         """Predict rating for user-item pair."""
-        pred = self.global_bias
-        pred += self.user_bias[user_id] + self.item_bias[item_id]
-        pred += np.dot(self.user_factors[user_id], self.item_factors[item_id])
+        with torch.no_grad():
+            user_factor = self.user_embedding.weight[user_id]
+            item_factor = self.item_embedding.weight[item_id]
+            u_bias = self.user_bias_embedding.weight[user_id, 0]
+            i_bias = self.item_bias_embedding.weight[item_id, 0]
+
+            pred = self._global_bias.item()
+            pred += u_bias.item() + i_bias.item()
+            pred += torch.dot(user_factor, item_factor).item()
+
         return float(pred)
+
+    def forward(self, user_ids: torch.Tensor, item_ids: torch.Tensor) -> torch.Tensor:
+        """Forward pass to compute predictions.
+
+        Args:
+            user_ids: Tensor of user indices (batch_size,)
+            item_ids: Tensor of item indices (batch_size,)
+
+        Returns:
+            Predicted ratings (batch_size,)
+        """
+        # Get embeddings
+        user_factors = self.user_embedding(user_ids)  # (batch_size, num_factors)
+        item_factors = self.item_embedding(item_ids)  # (batch_size, num_factors)
+        user_biases = self.user_bias_embedding(user_ids).squeeze()  # (batch_size,)
+        item_biases = self.item_bias_embedding(item_ids).squeeze()  # (batch_size,)
+
+        # Compute predictions
+        preds = self._global_bias + user_biases + item_biases
+        preds += (user_factors * item_factors).sum(dim=1)
+
+        return preds
 
     def fit(
         self,
@@ -61,35 +144,64 @@ class MatrixFactorization:
         item_ids: list[int],
         ratings: list[float],
         epochs: int = 10,
+        batch_size: int = 32,
         verbose: bool = False,
     ):
-        """Train model using SGD."""
-        self.global_bias = np.mean(ratings)
+        """Train model using SGD with mini-batch support and autograd.
+
+        Args:
+            user_ids: List of user indices
+            item_ids: List of item indices
+            ratings: List of ratings
+            epochs: Number of training epochs
+            batch_size: Mini-batch size
+            verbose: Whether to print training progress
+        """
+        # Set global bias
+        self._global_bias.data = torch.tensor([np.mean(ratings)], dtype=torch.float32)
+
+        # Convert to tensors
+        users_t = torch.tensor(user_ids, dtype=torch.long)
+        items_t = torch.tensor(item_ids, dtype=torch.long)
+        ratings_t = torch.tensor(ratings, dtype=torch.float32)
+
+        n_samples = len(user_ids)
+
+        # Create optimizer with L2 regularization (weight decay)
+        optimizer = torch.optim.SGD(self.parameters(), lr=self.lr, weight_decay=self.reg)
 
         for epoch in range(epochs):
-            total_error = 0.0
+            total_loss = 0.0
 
-            for u, i, r in zip(user_ids, item_ids, ratings):
-                # Prediction error
-                pred = self.predict(u, i)
-                error = r - pred
-                total_error += error**2
+            # Process in batches
+            for batch_indices in batched(range(n_samples), batch_size):
+                # print("batch", batch_indices)
+                batch_indices = list(batch_indices)  # Convert to list for indexing
 
-                # Update biases
-                self.user_bias[u] += self.lr * (error - self.reg * self.user_bias[u])
-                self.item_bias[i] += self.lr * (error - self.reg * self.item_bias[i])
+                # Get batch data
+                batch_users = users_t[batch_indices]
+                batch_items = items_t[batch_indices]
+                batch_ratings = ratings_t[batch_indices]
 
-                # Update factors
-                u_factors = self.user_factors[u].copy()
-                self.user_factors[u] += self.lr * (
-                    error * self.item_factors[i] - self.reg * u_factors
-                )
-                self.item_factors[i] += self.lr * (
-                    error * u_factors - self.reg * self.item_factors[i]
-                )
+                # Zero gradients
+                optimizer.zero_grad()
 
-            if verbose and (epoch + 1) % 5 == 0:
-                rmse = np.sqrt(total_error / len(ratings))
+                # Forward pass
+                preds = self.forward(batch_users, batch_items)
+
+                # Compute MSE loss
+                loss = ((batch_ratings - preds) ** 2).mean()
+
+                # Backward pass (compute gradients)
+                loss.backward()
+
+                # Update parameters
+                optimizer.step()
+
+                total_loss += loss.item() * len(batch_indices)
+
+            if verbose:
+                rmse = np.sqrt(total_loss / n_samples)
                 print(f"Epoch {epoch + 1}: RMSE = {rmse:.4f}")
 
 
@@ -122,12 +234,15 @@ class EASE:
         Args:
             X: User-item interaction matrix (sparse or dense)
         """
-        # Convert to dense if sparse
-        if hasattr(X, "toarray"):
-            X = X.toarray()
+        # Gram matrix
+        G = X.T @ X
 
-        # Gram matrix (ensure float type)
-        G = (X.T @ X).astype(np.float64)
+        # Convert to dense if sparse
+        if hasattr(G, "toarray"):
+            G = G.toarray()
+
+        # Ensure float64
+        G = G.astype(np.float64)
 
         # Add regularization to diagonal
         diag_indices = np.diag_indices_from(G)

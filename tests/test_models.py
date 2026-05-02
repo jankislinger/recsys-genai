@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import scipy.sparse as sp
+import torch
 
 from recsys_genai.models import EASE, MatrixFactorization
 
@@ -21,12 +22,12 @@ def test_matrix_factorization_predict():
     """Test MF prediction."""
     model = MatrixFactorization(num_users=10, num_items=5, num_factors=3)
 
-    # Set known factors for testing
-    model.user_factors[0] = [1.0, 0.0, 0.0]
-    model.item_factors[0] = [1.0, 0.0, 0.0]
-    model.user_bias[0] = 0.5
-    model.item_bias[0] = 0.3
-    model.global_bias = 3.5
+    # Set known factors for testing using PyTorch syntax
+    model.user_embedding.weight.data[0] = torch.tensor([1.0, 0.0, 0.0])
+    model.item_embedding.weight.data[0] = torch.tensor([1.0, 0.0, 0.0])
+    model.user_bias_embedding.weight.data[0, 0] = 0.5
+    model.item_bias_embedding.weight.data[0, 0] = 0.3
+    model._global_bias.data[0] = 3.5
 
     pred = model.predict(0, 0)
     # Expected: 3.5 + 0.5 + 0.3 + 1.0*1.0 = 5.3

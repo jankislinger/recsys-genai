@@ -171,6 +171,7 @@ class MFSettings(BaseSettings):
     learning_rate: float = Field(default=0.01, description="SGD learning rate")
     reg: float = Field(default=0.01, description="L2 regularization parameter")
     epochs: int = Field(default=20, description="Number of training epochs")
+    batch_size: int = Field(default=512, description="Batch size for SGD")
     verbose: bool = Field(default=True, description="Print training progress")
 
 
@@ -210,7 +211,8 @@ mf_model.fit(
     item_ids=item_indices,
     ratings=rating_values,
     epochs=settings.epochs,
-    verbose=settings.verbose
+    batch_size=settings.batch_size,
+    verbose=settings.verbose,
 )
 ```
 
@@ -234,7 +236,7 @@ print(f"  Item embeddings: {mf_model.item_factors.shape}")
 print(f"  User embeddings: {mf_model.user_factors.shape}")
 print(f"  Number of items: {len(item_to_idx):,}")
 print(f"\nFile created:")
-print(f"  - mf_embeddings_{settings.num_factors}d.npz")
+print(f"  - mf_embeddings.npz")
 print(f"    Contains: embeddings, item_ids, item_indices")
 ```
 
@@ -286,6 +288,7 @@ embedding_df = pl.DataFrame(embedding_data)
 
 display(Markdown(f"""
 **t-SNE Visualization:**
+
 - Total movies visualized: {len(embedding_df):,}
 - Example movies highlighted: {len(example_indices)}
 - Perplexity: 30, Iterations: 1000
@@ -842,25 +845,3 @@ We've explored two foundational collaborative filtering approaches:
 
 - **MF**: When you need rating predictions, have explicit feedback, want interpretable embeddings
 - **EASE**: When you need fast, simple baseline, have implicit feedback, value interpretability
-
-## Configuration
-
-**Matrix Factorization** supports environment variable configuration:
-- All hyperparameters can be overridden with `MF_` prefix
-- Example: `MF_NUM_FACTORS=128 MF_EPOCHS=200 MF_LEARNING_RATE=0.005`
-- Default: 64 factors, 100 epochs (optimized for slate generation in Part IV)
-- Random seed is always 42 for reproducibility
-
-**For slate generation (Part IV):**
-- The model saves embeddings in the format expected by `04a_slate_generation.qmd`
-- Default configuration (64d, 100 epochs) provides good quality embeddings
-- Increase epochs to 150-200 for better convergence if needed
-
-## Next Steps
-
-In the remaining notebooks, we'll explore:
-- **Part II (SASRec)**: Sequential recommendation with self-attention
-- **Part III (LLMs)**: Zero-shot and few-shot recommendations with language models
-- **Part IV (Slate Generation)**: Use these MF embeddings for diversity-aware recommendations
-
-These modern approaches address limitations of classical CF (cold start, sequential patterns, semantic understanding).
