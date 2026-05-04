@@ -220,6 +220,7 @@ display(Markdown(dataloader_stats))
 
 ## SASRec Implementation
 
+::: {.callout-tip}
 The SASRec class below inherits from `_SASRec` (imported from `recsys_genai.sasrec`), which provides the transformer building blocks. Your task is to implement the `forward` and `predict_next` methods!
 
 **Task**: Fill in the `forward` method to compute logits for next-item prediction:
@@ -236,6 +237,7 @@ The SASRec class below inherits from `_SASRec` (imported from `recsys_genai.sasr
 - For causal mask: use `torch.triu()` with `diagonal=1` to mask future positions
 - For logits: reuse item embeddings with matrix multiplication (`torch.matmul`)
 - Remember: logits shape is (batch_size, seq_len, num_items)
+:::
 
 ```{python}
 #| label: sasrec-wrapper-class
