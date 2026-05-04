@@ -342,6 +342,42 @@ display(Markdown(model_stats))
 print(model)
 ```
 
+```{python}
+#| label: test-model-dummy-data
+
+# Create dummy data for testing
+batch_size = 2
+num_candidates = 20
+slate_size = 5
+
+# Random seed and candidate indices
+dummy_seed_indices = torch.randint(0, num_items, (batch_size,), device=device)
+dummy_candidate_indices = torch.randint(0, num_items, (batch_size, num_candidates), device=device)
+
+# Test 1: Forward pass
+model.eval()
+with torch.no_grad():
+    # Create a partial slate (first 3 positions)
+    dummy_slate_indices = torch.randint(0, num_items, (batch_size, 3), device=device)
+
+    # Forward pass
+    scores = model.forward(dummy_seed_indices, dummy_candidate_indices, dummy_slate_indices)
+    print(f"Forward pass - scores shape: {scores.shape}")
+
+# Test 2: Generate complete slate
+with torch.no_grad():
+    selected_indices, log_probs = model.generate_slate(
+        dummy_seed_indices,
+        dummy_candidate_indices,
+        slate_size=slate_size,
+        temperature=1.0
+    )
+    print(f"Generate slate - selected_indices shape: {selected_indices.shape}")
+    print(f"Generate slate - log_probs shape: {log_probs.shape}")
+    print(f"Sample 1 - selected positions: {selected_indices[0].tolist()}")
+    print(f"Sample 2 - selected positions: {selected_indices[1].tolist()}")
+```
+
 # Reward Function
 
 The reward balances relevance to the seed item and diversity within the slate.

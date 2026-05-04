@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader
 
 from recsys_genai.data_utils import SequenceDataset, get_user_sequences, load_movielens
 from recsys_genai.metrics import ndcg_at_k, recall_at_k
-from recsys_genai.sasrec import SASRec, train_sasrec
+from recsys_genai.sasrec import SASRec as _SASRec, train_sasrec
 ```
 
 ```{python}
@@ -217,6 +217,57 @@ display(Markdown(dataloader_stats))
 ```
 
 # Build SASRec Model
+
+## SASRec Implementation
+
+::: {.callout-tip}
+## 🎯 Interactive Exercise
+
+The SASRec class below inherits from `_SASRec` (imported from `recsys_genai.sasrec`), which provides the full transformer architecture. Your task is to implement the `predict_next` method for inference!
+
+**Your task**: Fill in the `predict_next` method to generate top-K recommendations:
+1. Set the model to evaluation mode and disable gradients
+2. Get logits from the forward pass
+3. Extract logits for the last position (most recent item)
+4. Find the top-K items with highest scores
+
+**Hints**:
+- Use `self.eval()` and `torch.no_grad()`
+- Use `self(seq)` to call the forward method
+- Use `torch.topk()` to find top-K values
+- Remember: logits shape is (batch_size, seq_len, num_items)
+:::
+
+```{python}
+#| label: sasrec-wrapper-class
+
+class SASRec(_SASRec):
+    """Self-Attentive Sequential Recommendation model.
+
+    Inherits the full transformer architecture from the base implementation.
+    You only need to implement the predict_next method for inference!
+    """
+
+    def predict_next(self, seq: torch.Tensor, k: int = 10) -> tuple[torch.Tensor, torch.Tensor]:
+        """Predict top-K next items for a sequence.
+
+        TODO: Implement this method!
+
+        Args:
+            seq: (batch_size, seq_len) Item sequence
+            k: Number of items to return
+
+        Returns:
+            top_items: (batch_size, k) Top-K item indices
+            top_scores: (batch_size, k) Corresponding scores
+        """
+        # TODO: Set model to evaluation mode
+        # TODO: Disable gradient computation
+        # TODO: Get logits from forward pass
+        # TODO: Extract logits for last position
+        # TODO: Find top-K items and scores
+        ...
+```
 
 ## Model Architecture
 
@@ -513,3 +564,39 @@ SASRec uses the same transformer architecture as GPT!
 - GPT predicts next **word**
 - SASRec predicts next **item**
 - Both use causal self-attention
+
+# Appendix: Solution to Interactive Exercise
+
+::: {.callout-note collapse="true"}
+## Solution: `predict_next` Implementation
+
+Here's the complete implementation of the `predict_next` method:
+
+```python
+def predict_next(self, seq: torch.Tensor, k: int = 10) -> tuple[torch.Tensor, torch.Tensor]:
+    """Predict top-K next items for a sequence.
+
+    Args:
+        seq: (batch_size, seq_len) Item sequence
+        k: Number of items to return
+
+    Returns:
+        top_items: (batch_size, k) Top-K item indices
+        top_scores: (batch_size, k) Corresponding scores
+    """
+    self.eval()
+    with torch.no_grad():
+        logits = self(seq)
+        # Get logits for last position
+        last_logits = logits[:, -1, :]
+        top_scores, top_items = torch.topk(last_logits, k, dim=-1)
+    return top_items, top_scores
+```
+
+**Key steps:**
+1. **Set eval mode**: `self.eval()` disables dropout and sets batch norm to evaluation mode
+2. **Disable gradients**: `torch.no_grad()` saves memory and speeds up inference
+3. **Forward pass**: `self(seq)` calls the inherited `forward()` method to get logits
+4. **Extract last position**: `logits[:, -1, :]` gets predictions for next item (after the sequence)
+5. **Get top-K**: `torch.topk()` returns both the top-K scores and their indices
+:::
