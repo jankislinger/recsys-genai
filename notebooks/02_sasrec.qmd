@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader
 
 from recsys_genai.data_utils import SequenceDataset, get_user_sequences, load_movielens
 from recsys_genai.metrics import ndcg_at_k, recall_at_k
-from recsys_genai.sasrec import SASRec as _SASRec, train_sasrec
+from recsys_genai.sasrec import SASRec as _SASRec, train_sasrec, TransformerBlock
 ```
 
 ```{python}
@@ -220,23 +220,22 @@ display(Markdown(dataloader_stats))
 
 ## SASRec Implementation
 
-::: {.callout-tip}
-## 🎯 Interactive Exercise
+The SASRec class below inherits from `_SASRec` (imported from `recsys_genai.sasrec`), which provides the transformer building blocks. Your task is to implement the `forward` and `predict_next` methods!
 
-The SASRec class below inherits from `_SASRec` (imported from `recsys_genai.sasrec`), which provides the full transformer architecture. Your task is to implement the `predict_next` method for inference!
+**Task**: Fill in the `forward` method to compute logits for next-item prediction:
 
-**Your task**: Fill in the `predict_next` method to generate top-K recommendations:
-1. Set the model to evaluation mode and disable gradients
-2. Get logits from the forward pass
-3. Extract logits for the last position (most recent item)
-4. Find the top-K items with highest scores
+1. Extract batch size and sequence length from input
+2. Create position indices and add positional embeddings to item embeddings
+3. Create a causal mask to prevent attending to future positions
+4. Apply transformer blocks sequentially
+5. Apply layer normalization and compute output logits
 
 **Hints**:
-- Use `self.eval()` and `torch.no_grad()`
-- Use `self(seq)` to call the forward method
-- Use `torch.topk()` to find top-K values
+
+- For positions: use `torch.arange()` with proper device, then `.unsqueeze(0)` and `.expand()` to match batch size
+- For causal mask: use `torch.triu()` with `diagonal=1` to mask future positions
+- For logits: reuse item embeddings with matrix multiplication (`torch.matmul`)
 - Remember: logits shape is (batch_size, seq_len, num_items)
-:::
 
 ```{python}
 #| label: sasrec-wrapper-class
@@ -244,29 +243,93 @@ The SASRec class below inherits from `_SASRec` (imported from `recsys_genai.sasr
 class SASRec(_SASRec):
     """Self-Attentive Sequential Recommendation model.
 
-    Inherits the full transformer architecture from the base implementation.
-    You only need to implement the predict_next method for inference!
+    Uses self-attention to model sequential user behavior for next-item prediction.
+    Based on "Self-Attentive Sequential Recommendation" (Kang & McAuley, 2018).
+
+    Args:
+        num_items: Number of items in catalog (+ padding idx 0)
+        max_len: Maximum sequence length
+        num_blocks: Number of transformer blocks
+        num_heads: Number of attention heads
+        hidden_size: Dimensionality of embeddings
+        dropout: Dropout probability
+
+    Example:
+        >>> model = SASRec(num_items=100, max_len=50, hidden_size=64)
+        >>> seq = torch.randint(0, 100, (2, 50))  # batch_size=2, seq_len=50
+        >>> logits = model(seq)
+        >>> logits.shape
+        torch.Size([2, 50, 101])
     """
 
-    def predict_next(self, seq: torch.Tensor, k: int = 10) -> tuple[torch.Tensor, torch.Tensor]:
-        """Predict top-K next items for a sequence.
+    def __init__(
+        self,
+        num_items: int,
+        max_len: int = 50,
+        num_blocks: int = 2,
+        num_heads: int = 2,
+        hidden_size: int = 64,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+
+        self.num_items = num_items
+        self.max_len = max_len
+
+        # Item embeddings (0 is padding)
+        self.item_emb = nn.Embedding(num_items + 1, hidden_size, padding_idx=0)
+        self.pos_emb = nn.Embedding(max_len, hidden_size)
+
+        # Transformer blocks
+        self.blocks = nn.ModuleList(
+            [TransformerBlock(hidden_size, num_heads, dropout) for _ in range(num_blocks)]
+        )
+
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(hidden_size)
+
+    def forward(self, seq: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
 
         TODO: Implement this method!
 
         Args:
-            seq: (batch_size, seq_len) Item sequence
-            k: Number of items to return
+            seq: (batch_size, seq_len) Item sequence tensor
 
         Returns:
-            top_items: (batch_size, k) Top-K item indices
-            top_scores: (batch_size, k) Corresponding scores
+            (batch_size, seq_len, num_items) Logits for next item prediction
         """
-        # TODO: Set model to evaluation mode
-        # TODO: Disable gradient computation
-        # TODO: Get logits from forward pass
-        # TODO: Extract logits for last position
-        # TODO: Find top-K items and scores
-        ...
+        # TODO: Extract batch_size and seq_len from input tensor
+        batch_size, seq_len = ...
+        
+        # TODO: Create position indices (0, 1, 2, ..., seq_len-1) for the batch
+        positions = ...
+        
+        # TODO: Combine item embeddings and positional embeddings, then apply dropout
+        x = ...
+        
+        # Create causal mask
+        mask = torch.triu(torch.ones(seq_len, seq_len, device=seq.device), diagonal=1).bool()
+
+        # TODO: Apply each transformer block with the mask
+        for ...:
+            pass
+        
+        # TODO: Apply final layer normalization
+        x = ...
+        
+        # TODO: Compute output logits by projecting to vocabulary (reuse item embeddings)
+        logits = ...
+        
+        return logits
+```
+
+```{python}
+#| label: sasrec-model-test-call
+
+model_test = SASRec(num_items=100, max_len=50, hidden_size=64)
+test_seq = torch.randint(0, 100, (2, 50))  # batch_size=2, seq_len=50
+model_test(test_seq)
 ```
 
 ## Model Architecture
@@ -568,9 +631,55 @@ SASRec uses the same transformer architecture as GPT!
 # Appendix: Solution to Interactive Exercise
 
 ::: {.callout-note collapse="true"}
-## Solution: `predict_next` Implementation
+## Solution: `forward` and `predict_next` Implementation
 
-Here's the complete implementation of the `predict_next` method:
+Here's the complete implementation of both methods:
+
+### `forward` Method
+
+```python
+def forward(self, seq: torch.Tensor) -> torch.Tensor:
+    """Forward pass.
+
+    Args:
+        seq: (batch_size, seq_len) Item sequence tensor
+
+    Returns:
+        (batch_size, seq_len, num_items) Logits for next item prediction
+    """
+    batch_size, seq_len = seq.shape
+
+    # Create position indices for positional embeddings
+    positions = torch.arange(seq_len, device=seq.device).unsqueeze(0).expand(batch_size, -1)
+
+    # Combine item and positional embeddings
+    x = self.item_emb(seq) + self.pos_emb(positions)
+    x = self.dropout(x)
+
+    # Create causal mask (upper triangular) to prevent attending to future positions
+    mask = torch.triu(torch.ones(seq_len, seq_len, device=seq.device), diagonal=1).bool()
+
+    # Apply transformer blocks
+    for block in self.blocks:
+        x = block(x, mask)
+
+    # Final layer normalization
+    x = self.layer_norm(x)
+
+    # Output logits (reuse item embeddings as output projection)
+    logits = torch.matmul(x, self.item_emb.weight.T)
+
+    return logits
+```
+
+**Key steps:**
+1. **Extract dimensions**: Get batch size and sequence length from input
+2. **Positional encoding**: Create position indices and combine with item embeddings
+3. **Causal mask**: Use upper triangular matrix to prevent future information leakage
+4. **Transformer blocks**: Apply self-attention and feed-forward layers sequentially
+5. **Output projection**: Reuse item embeddings to compute logits over vocabulary
+
+### `predict_next` Method
 
 ```python
 def predict_next(self, seq: torch.Tensor, k: int = 10) -> tuple[torch.Tensor, torch.Tensor]:
@@ -596,7 +705,7 @@ def predict_next(self, seq: torch.Tensor, k: int = 10) -> tuple[torch.Tensor, to
 **Key steps:**
 1. **Set eval mode**: `self.eval()` disables dropout and sets batch norm to evaluation mode
 2. **Disable gradients**: `torch.no_grad()` saves memory and speeds up inference
-3. **Forward pass**: `self(seq)` calls the inherited `forward()` method to get logits
+3. **Forward pass**: `self(seq)` calls the `forward()` method to get logits
 4. **Extract last position**: `logits[:, -1, :]` gets predictions for next item (after the sequence)
 5. **Get top-K**: `torch.topk()` returns both the top-K scores and their indices
 :::
