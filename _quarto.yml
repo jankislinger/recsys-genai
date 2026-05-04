@@ -35,7 +35,7 @@ website:
             href: slides/04b_generative_pages.qmd
           - text: "---"
           - text: "Wrap-up"
-            href: slides/07_wrapup.qmd
+            href: slides/05_wrapup.qmd
       - text: "Notebooks"
         menu:
           - text: "I.a: MovieLens Dataset"

@@ -1,270 +1,227 @@
 ---
-title: "From Matrix Factorization to Generative Recommendation Pages"
-subtitle: "Part I: Why Recommendation is Becoming Generative"
+title: "Recommender Systems in the Age of Generative AI"
+subtitle: "ML Prague 2026 Workshop"
 format: revealjs
 ---
 
-## Welcome! {.center}
+## Welcome! 🎉 {.center}
 
-**ML Prague 2026 Workshop**
+**Recommender Systems in the Age of Generative AI**
+
+ML Prague 2026 Workshop
+
+May 4, 2026 | 14:00 – 17:30
+
+---
+
+## Workshop Materials 📚 {.center}
+
+**All materials available online:**
+
+[jankislinger.github.io/recsys-genai](https://jankislinger.github.io/recsys-genai)
 
 ::: {.fragment}
-**What if we generate the recommendation surface itself?**
-:::
+**What's included:**
 
-::: {.fragment}
-Traditional systems rank items → Modern systems generate experiences
+- All presentation slides
+- Rendered Jupyter notebooks
+- References page with all cited papers
 :::
 
 ---
 
-## Three Recommendation Surfaces
+## Your Instructors
 
 ::: {.columns}
-::: {.column width="33%"}
-**Traditional**
+::: {.column width="50%"}
+**Jan Kislinger**
 
-```text
-[Item 1] ★★★★
-[Item 2] ★★★★
-[Item 3] ★★★★
-```
-
-*Ranked list*
+- ML Engineer @ Sky Czech Republic
+- PhD Student @ Czech Technical Uni.
 :::
 
-::: {.column width="33%"}
-**Conversational**
+::: {.column width="50%"}
+**Bogdan Bodnár**
 
-```text
-User: "Something uplifting"
-
-Bot: "Based on your mood,
-     try Paddington 2..."
-```
-
-*LLM-powered dialog*
-:::
-
-::: {.column width="33%"}
-**Generative**
-
-```text
-┌─────────────┐
-│ [For You]   │
-├─────────────┤
-│ [Trending]  │
-├─────────────┤
-│ [Because    │
-│  you liked] │
-└─────────────┘
-```
-
-*Generated layout*
+- ML Engineer @ Sky Czech Republic
 :::
 :::
 
 ---
 
-## The Workshop Arc
+## What is Generative AI? {.center}
 
-```{mermaid}
-%%| fig-width: 10
-%%| fig-height: 4
-graph LR
-    A[Collaborative<br/>Filtering] --> B[Matrix<br/>Factorization]
-    B --> C[Retrieval +<br/>Ranking]
-    C --> D[Sequential<br/>Transformers]
-    D --> E[LLM-Powered<br/>Recommendation]
-    E --> F[Generative<br/>Pages]
-    
-    style A fill:#e8f4f8
-    style B fill:#d1e7f0
-    style C fill:#b9dae8
-    style D fill:#a2cde0
-    style E fill:#8ac0d8
-    style F fill:#72b3d0
-```
+**For Text**: Transformers
+
+- GPT, BERT, T5, LLaMA
+- Self-attention mechanisms
+- Generation and understanding tasks
 
 ::: {.fragment}
-**Today's journey**: Classical methods → Sequential models → Generative systems
+**For Images**: Diffusion Models
+
+- Stable Diffusion, DALL-E, Midjourney
+- Iterative denoising process
+- Text-to-image generation
 :::
-
----
-
-## Evolution of Recommenders
-
-**Phase 1: Collaborative Filtering (1990s)**
-
-- Idea: Users who agreed in the past will agree in the future
-- *Papers*: Resnick et al. (1994), Sarwar et al. (2001)
-
-**Phase 2: Matrix Factorization (2000s)**
-
-- Idea: Latent factors explain preferences
-- *Papers*: Koren et al. (2009) - Netflix Prize winner
-
-**Phase 3: Neural Two-Tower Retrieval (2010s)**
-
-- Idea: Learn user & item embeddings separately
-- *Papers*: @covington2016deep - YouTube recommendations, @yi2019sampling - Sampling bias correction
-
----
-
-## From Ranking to Slates
-
-**Traditional**: Rank individual items
-
-$$
-\text{score}(u, i) = f(\text{user}, \text{item})
-$$
-
-**Slate Recommendation**: Optimize sets of items jointly
-
-- Diversity constraints
-- MMR (Maximal Marginal Relevance) - Carbonell & Goldstein
-- SlateQ - Ie et al. (reinforcement learning for slates)
 
 ::: {.fragment}
-**Why?** Top-10 lists should be diverse, complementary, and coherent!
+**This workshop**: Focus on **Transformers only**
 :::
 
 ---
 
-## GenAI for Recommendation: A Taxonomy
+## Workshop Schedule
 
-| **Use Case**              | **How GenAI Helps**                 | **Example**                          |
-|---------------------------|-------------------------------------|--------------------------------------|
-| Embeddings                | Better semantic representations     | Sentence transformers for items      |
-| Metadata Generation       | Enrich sparse catalogs              | Generate tags, descriptions          |
-| Zero-Shot Recommendation  | Cold-start without training data    | LLM suggests items from text         |
-| Sequence Modeling         | Next-item prediction                | Transformer-based sequential models  |
-| **Page Generation**       | **Create entire recommendation UIs**| **Autoregressive layout design**     |
+|         | Topic                     | Duration |
+|---------|---------------------------|----------|
+|         | Introduction & Motivation | 20 min   |
+| **I**   | Foundations               | 30 min   |
+| **II**  | Transformers & SASRec     | 40 min   |
+|         | _Break_                   | 30 min   |
+| **III** | LLMs for Recommendation   | 50 min   |
+| **IV**  | Generative Pages          | 30 min   |
+|         | Wrap-up & Resources       | 10 min   |
+
+---
+
+## You'll Learn... {.center}
+
+---
+
+## Part I: Foundations
+
+**Classical Foundations**
+
+- MovieLens dataset exploration
+- Collaborative filtering fundamentals
+- **EASE** - Embarrassingly Shallow Autoencoders
+- Two-tower models
+- Embedding-based retrieval
 
 ::: {.fragment}
-Today we'll touch all five, focusing on the last.
+**Why it matters:**
+
+These lay foundations for all modern recommendation systems, including generative approaches
 :::
 
 ---
 
-## Why Generation Matters
+## Part II: Sequential Models
 
-**Classical RecSys:**
-- Pre-defined templates
-- Fixed number of rows
-- Static layout
+**Sequential Models**
 
-**Generative RecSys:**
-- Adaptive layouts per user
-- Dynamic number of items/rows
-- Personalized page structure
+- Transformer architecture deep dive
+- Self-attention mechanisms
+- **SASRec** - Self-Attentive Sequential Recommendation
+- Temporal patterns in user behavior
+- Beyond static user embeddings
 
 ::: {.fragment}
-*The entire homepage becomes a recommendation!*
+**Why it matters:**
+
+Transformers revolutionized NLP and beyond
 :::
 
 ---
 
-## Workshop Roadmap
+## Part III: LLM-Powered Recommendation
 
-| **Part**                   | **Time** | **Activities**                               |
-|----------------------------|----------|----------------------------------------------|
-| I. Introduction            | 20 min   | ✓ Motivation & taxonomy (this!)              |
-| II. Foundations            | 35 min   | 🧑‍💻 MovieLens + MF + EASE notebook              |
-| III. Transformers & SASRec | 45 min   | 📊 Slides + 🧑‍💻 Sequential modeling notebook   |
-| IV. LLMs for RecSys        | 35 min   | 📊 Slides + 🧑‍💻 Zero-shot recommendation       |
-| V. Page Generation         | 30 min   | 📊 Slides + capstone design exercise         |
-| VI. Wrap-up                | 15 min   | Research map & next steps                    |
+**LLM-Powered Recommendation**
+
+- Zero-shot recommendation (no training data!)
+- Metadata augmentation with LLMs
+- Cold-start problem solutions
+- LLMs as zero-shot rankers
+- Bridging collaborative filtering and semantic understanding
+
+::: {.fragment}
+**Why it matters:**
+
+LLMs unlock new capabilities impossible with traditional methods
+:::
 
 ---
 
-## Meet Alice: Our Running Example
+## Part IV: Generative Pages
+
+**Generative Pages**
+
+- Re-ranking strategies
+- Slate optimization techniques
+- Diversity and coverage constraints
+- Whole page optimization
+
+::: {.fragment}
+**Why it matters:**
+
+Modern platforms optimize entire personalized experiences, not just individual items
+:::
+
+---
+
+## What You'll Build
+
+- EASE (collaborative filtering)
+- SASRec (transformer-based sequential recommendation)
+- LLM-powered recommendations
+- Conversational recommendation
+- Generative recommendation pages
+
+---
+
+## Tech Stack
 
 ::: {.columns}
-::: {.column width="60%"}
-**Alice's MovieLens History:**
+::: {.column width="50%"}
+**Tooling**
 
-- Toy Story (1995)
-- Finding Nemo (2003)
-- Up (2009)
-- Inside Out (2015)
-- ...
-
-**Her next movie?**
+- JupyterLab
+- Quarto
+- Ollama
 :::
 
-::: {.column width="40%"}
-We'll follow Alice through:
+::: {.column width="50%"}
+**Python Packages**
 
-1. Matrix factorization
-2. SASRec sequences
-3. LLM prompting
-4. Generated homepage
+- Polars
+- PyTorch
+- plotnine
+- NumPy & SciPy
 :::
 :::
 
 ::: {.fragment}
-One user, five techniques — maximum coherence!
+**All running locally on your machine!**
 :::
 
 ---
 
-## Key Papers: Classical Era
+## Prerequisites
 
-**Collaborative Filtering**
-- Resnick et al., "GroupLens: An Open Architecture for Collaborative Filtering" (1994)
-- Sarwar et al., "Item-Based Collaborative Filtering" (2001)
+::: {.callout-note}
+**Level**: Intermediate to Advanced
 
-**Matrix Factorization**
-- Koren et al., "Matrix Factorization Techniques for Recommender Systems" (2009)
+**You should have:**
 
-**Neural Retrieval**
-- Covington et al., "Deep Neural Networks for YouTube Recommendations" (2016)
-
-**Ranking & Slates**
-- Carbonell & Goldstein, "Maximal Marginal Relevance" (1998)
-- Ie et al., "SlateQ" (2019)
+- Python programming experience
+- Basic ML knowledge
+- Laptop with setup completed
+:::
 
 ---
 
-## What You'll Leave With
+## Be active!
 
-📓 **3 Core Notebooks:**
-- MovieLens foundations (MF, EASE)
-- SASRec sequential model
-- LLM metadata generation
+**Activity is appreciated and rewarded:**
 
-📓 **3 Advanced Notebooks** (take-home):
-- Bert4Rec bidirectional sequences
-- ANN retrieval with FAISS
-- Page generation prototype
-
-📚 **Reading List:**
-- Cornerstone papers per module
-- Research roadmap
-
----
-
-## Let's Build! {.center}
-
-**Next: Part I - Foundations Notebook**
-
-Hands-on with MovieLens:
-- Dataset exploration
-- Matrix factorization
-- EASE (embarrassingly shallow autoencoder)
-- Content vs. collaborative filtering
-
-🧑‍💻 Open `notebooks/02_foundations.qmd`
-
----
-
-## Questions?
-
-Before we dive into code...
+- Participation in discussions
+- Hands-on coding during exercises
+- Asking questions
+- Sharing insights
 
 ::: {.fragment}
-**Remember**: We're building toward generative recommendation pages.
-
-Each technique is a stepping stone!
+🎁 **Sky merch for active participants!**
 :::
+
+# Let's Get Started! {.center}

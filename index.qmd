@@ -131,7 +131,7 @@ ollama pull ministral-3:3b
 We'll use **JupyterLab** for hands-on coding:
 
 ```bash
-uv run jupyter lab
+uv run jupyter lab --notebook-dir=notebooks
 ```
 
 This opens directly in your browser.

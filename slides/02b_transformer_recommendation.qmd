@@ -44,7 +44,6 @@ Predict **next item**
 ```
 :::
 
-
 ---
 
 ## Applying BERT-Style models

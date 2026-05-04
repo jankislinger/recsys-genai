@@ -1,0 +1,100 @@
+---
+title: "Wrap-up & Next Steps"
+subtitle: "Thank you for participating!"
+format: revealjs
+---
+
+## What We Covered Today {.center}
+
+**A Complete Journey Through Modern RecSys**
+
+---
+
+## Part I: Foundations ✅
+
+**Classical Recommender Systems**
+
+- Collaborative filtering fundamentals
+- Matrix factorization and embeddings
+- EASE - Embarrassingly Shallow Autoencoders
+- Two-tower models for scalable retrieval
+- Retrieval → Ranking pipeline
+
+::: {.fragment}
+**Key Insight:** Embeddings are the foundation of all modern recommendation systems
+:::
+
+---
+
+## Part II: Sequential Models ✅
+
+**Transformers for Recommendations**
+
+- Transformer architecture (attention mechanisms)
+- Self-Attentive Sequential Recommendation (SASRec)
+- Capturing temporal patterns in user behavior
+- From static to dynamic user preferences
+
+::: {.fragment}
+**Key Insight:** Sequence matters! Past interactions reveal future intent
+:::
+
+---
+
+## Part III: LLM-Powered Recommendation ✅
+
+**Generative AI Meets RecSys**
+
+- Zero-shot recommendation without training data
+- Metadata augmentation with LLMs
+- Solving the cold-start problem
+- Semantic understanding beyond collaborative signals
+- Conversational recommendation
+
+::: {.fragment}
+**Key Insight:** LLMs unlock capabilities impossible with traditional methods
+:::
+
+---
+
+## Part IV: Generative Pages ✅
+
+**Beyond Ranked Lists**
+
+- Re-ranking and slate optimization
+- Diversity and coverage constraints
+- Whole page generation
+- Multi-carousel experiences
+
+::: {.fragment}
+**Key Insight:** Modern platforms generate entire personalized experiences
+:::
+
+---
+
+## Key Takeaways
+
+::: {.incremental}
+1. **Fundamentals still matter** - Collaborative filtering, embeddings, and two-tower models remain essential
+2. **Transformers are everywhere** - From NLP to sequential recommendation
+3. **LLMs are game-changers** - Zero-shot capabilities, cold-start solutions, semantic understanding
+4. **Think beyond lists** - Design entire personalized experiences
+:::
+
+---
+
+## Take-Home Materials
+
+**All materials available on GitHub:**
+
+- 📓 **Jupyter Notebooks**
+- 📊 **Slide Presentations**
+- 🐍 **Reusable Python utilities**
+
+🔗 [github.com/jankislinger/recsys-genai](https://github.com/jankislinger/recsys-genai)
+
+::: {.fragment}
+**All references:** See the [References page](../references.qmd)
+:::
+
+# Thank You! {.center}
